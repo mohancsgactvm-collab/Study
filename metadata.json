@@ -1,0 +1,6 @@
+{
+  "name": "Study Master AI",
+  "description": "A personal AI tutor and study planner to convert your syllabus and notes into simple Tamil explanations, study plans, questions, and mock exams.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
