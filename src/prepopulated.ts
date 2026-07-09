@@ -72,75 +72,127 @@ export const prepopulatedSubject: SubjectSystem = {
   notes: [
     {
       topicName: "Arrays & Linked Lists (அணிகள் மற்றும் இணைக்கப்பட்ட பட்டியல்கள்)",
-      tamilExplanation: "அணிகள் (Arrays) என்பது தொடர்ச்சியான நினைவக இடங்களில் (Contiguous Memory Locations) ஒரே வகையான தரவு கூறுகளைச் சேமிக்கும் ஒரு நேரியல் தரவு அமைப்பாகும். இதற்கு மாறாக, இணைக்கப்பட்ட பட்டியல்கள் (Linked Lists) என்பது தரவுக் கூறுகளைக் கொண்ட நோட்களின் (Nodes) தொகுப்பாகும், அங்கு ஒவ்வொரு நோடும் அடுத்த நோட்டின் நினைவக முகவரியை (Pointer/Address) சுட்டிக்காட்டும்.",
+      tamilExplanation: "English Explanation:\nAn Array is a linear data structure that stores elements of the same type in contiguous memory locations, allowing fast index-based access. In contrast, a Linked List consists of separate nodes containing data and pointers/references that point to the next node in memory, allowing dynamic resizing and efficient insertions/deletions.\n\nதமிழ் விளக்கம்:\nஅணிகள் (Arrays) என்பது தொடர்ச்சியான நினைவக இடங்களில் (Contiguous Memory Locations) ஒரே வகையான தரவு கூறுகளைச் சேமிக்கும் ஒரு நேரியல் தரவு அமைப்பாகும். இது குறியீட்டு எண் (Index) மூலம் உறுப்புகளை வேகமாக அணுக அனுமதிக்கிறது. இதற்கு மாறாக, இணைக்கப்பட்ட பட்டியல்கள் (Linked Lists) என்பது தரவுக் கூறுகளைக் கொண்ட தனித்தனி நோட்களின் (Nodes) தொகுப்பாகும், அங்கு ஒவ்வொரு நோடும் அடுத்த நோட்டின் நினைவக முகவரியை (Pointer/Address) சுட்டிக்காட்டும். இது எளிதான அளவு மாற்றம் மற்றும் செருகுதல்/நீக்குதலை அனுமதிக்கிறது.",
       shortNotes: [
-        "Array நிலையான அளவு (Static Size) கொண்டது, Linked List மாறும் அளவு (Dynamic Size) கொண்டது.",
-        "Array-இல் கூறுகளை அணுகும் நேரம் O(1), ஆனால் Linked List-இல் குறிப்பிட்ட கூறை அணுக O(n) ஆகும்.",
-        "Linked List-இல் தரவைச் செருகுவது (Insertion) மற்றும் நீக்குவது (Deletion) எளிது - O(1) மட்டுமே."
+        "Array is static size (நிலையான அளவு), Linked List is dynamic size (மாறும் அளவு).",
+        "Array access is fast O(1) (வேகமான அணுகல்), Linked List access is linear O(n) (வரிசைமுறை அணுகல்).",
+        "Linked List insertion/deletion is highly efficient O(1) without shifting."
       ],
       importantPoints: [
-        "Array Index எப்போதும் 0 இல் தொடங்குகிறது.",
-        "Linked List-இன் கடைசி நோட்டின் பாயிண்டர் Null ஆக இருக்கும்.",
-        "Singly Linked List ஒரு திசையில் மட்டுமே செல்ல முடியும், Doubly Linked List இரு திசைகளிலும் செல்லலாம்."
+        "Arrays use contiguous block of memory (தொடர்ச்சியான நினைவகம்).",
+        "Linked List nodes contain Data and Next pointer (தரவு மற்றும் அடுத்த பாயிண்டர்).",
+        "The last node of a Linked List points to Null (பூஜ்ஜியம்) to signal the end."
       ],
-      memoryTricks: "அணிகள் (Arrays) என்பது ஒரு தொடருந்து வண்டிப் பெட்டிகள் போன்றது, அங்கு பெட்டிகள் வரிசையாக இணைக்கப்பட்டு எண்கள் இடப்பட்டிருக்கும். இணைக்கப்பட்ட பட்டியல்கள் (Linked Lists) என்பது ஒரு 'Treasure Hunt' விளையாட்டு போன்றது, அங்கு ஒவ்வொரு துப்புச் சீட்டும் (Node) அடுத்த துப்பு இருக்கும் இடத்தை (Pointer) மட்டுமே சுட்டிக்காட்டும்!"
+      memoryTricks: "Arrays are like a train with fixed numbered compartments (இருக்கை எண்களுடன் கூடிய இரயில் பெட்டி). Linked Lists are like a Treasure Hunt game (புதையல் தேடுதல் வேட்டை) where each clue (Node) tells you where the next clue is located (Pointer)!",
+      visualDiagram: {
+        type: "compare",
+        title: "Array vs Linked List Architecture (அணி மற்றும் இணைக்கப்பட்ட பட்டியலின் கட்டமைப்பு)",
+        nodes: [
+          { id: "arr1", labelEnglish: "Contiguous Array Block", labelTamil: "தொடர்ச்சியான நினைவக அடுக்கு", description: "[Value 10 | idx 0] -> [Value 20 | idx 1] -> [Value 30 | idx 2]" },
+          { id: "lnk1", labelEnglish: "Linked Node 1", labelTamil: "முதல் நோடு (Node 1)", description: "Data: 10 | Next: Node 2" },
+          { id: "lnk2", labelEnglish: "Linked Node 2", labelTamil: "இரண்டாம் நோடு (Node 2)", description: "Data: 20 | Next: Node 3" },
+          { id: "lnk3", labelEnglish: "Linked Node 3", labelTamil: "மூன்றாம் நோடு (Node 3)", description: "Data: 30 | Next: NULL" }
+        ],
+        edges: [
+          { from: "lnk1", to: "lnk2", label: "Pointer (சுட்டி)" },
+          { from: "lnk2", to: "lnk3", label: "Pointer (சுட்டி)" }
+        ]
+      }
     },
     {
       topicName: "Stacks & Queues (அடுக்குகள் மற்றும் வரிசைகள்)",
-      tamilExplanation: "அடுக்கு (Stack) என்பது கடைசியாகச் செருகப்பட்ட உறுப்பு முதலில் வெளியேறும் (LIFO - Last In First Out) என்ற முறையில் செயல்படும் ஒரு நேரியல் தரவு அமைப்பாகும். வரிசை (Queue) என்பது முதலில் செருகப்பட்ட உறுப்பு முதலில் வெளியேறும் (FIFO - First In First Out) என்ற முறையில் செயல்படும் அமைப்பாகும்.",
+      tamilExplanation: "English Explanation:\nA Stack is a linear data structure that follows the LIFO (Last In First Out) principle, where the last element inserted is the first one to be removed (e.g. push/pop operations at a single end called Top). A Queue is a linear structure following the FIFO (First In First Out) principle, where the first element inserted is the first to be removed (enqueue at Rear, dequeue at Front).\n\nதமிழ் விளக்கம்:\nஅடுக்கு (Stack) என்பது கடைசியாகச் செருகப்பட்ட உறுப்பு முதலில் வெளியேறும் (LIFO - Last In First Out) என்ற முறையில் செயல்படும் ஒரு நேரியல் தரவு அமைப்பாகும். இதன் செயல்பாடுகள் Push மற்றும் Pop ஒரு முனையில் (Top) மட்டுமே நிகழும். வரிசை (Queue) என்பது முதலில் செருகப்பட்ட உறுப்பு முதலில் வெளியேறும் (FIFO - First In First Out) என்ற முறையில் செயல்படும் அமைப்பாகும். இதில் தரவு பின்புறம் (Rear) சேர்க்கப்பட்டு முன்புறம் (Front) நீக்கப்படும்.",
       shortNotes: [
-        "Stack-இன் முக்கிய செயல்பாடுகள்: Push (தரவைச் சேர்த்தல்), Pop (தரவை நீக்குதல்) மற்றும் Peek (மேல் தரவைக் காட்டுதல்).",
-        "Queue-இன் முக்கிய செயல்பாடுகள்: Enqueue (பின்புறம் சேர்த்தல்) மற்றும் Dequeue (முன்புறம் நீக்குதல்).",
-        "Stack ஒரே ஒரு திறந்த முனையை (Top) மட்டுமே கொண்டுள்ளது. Queue இரு முனைகளைக் கொண்டுள்ளது (Front & Rear)."
+        "Stack works on LIFO (Last In First Out), Queue works on FIFO (First In First Out).",
+        "Stack operations: Push (add) & Pop (remove) at Top.",
+        "Queue operations: Enqueue (add at Rear) & Dequeue (remove from Front)."
       ],
       importantPoints: [
-        "Stack Overflow: Stack கொள்ளளவை விட அதிகமாகத் தரவைச் சேர்க்க முயலும் போது ஏற்படும் பிழை.",
-        "Stack Underflow: காலியாக உள்ள Stack-லிருந்து தரவை நீக்க முயலும் போது ஏற்படும் பிழை.",
-        "Queue முக்கியமாக இயக்க முறைமைகளில் (Operating Systems) பணி அட்டவணைப்படுத்தலுக்கு (Job Scheduling) பயன்படுகிறது."
+        "Stack has one open end (Top), Queue has two open ends (Front, Rear).",
+        "Stack Overflow: inserting into a full stack. Stack Underflow: removing from an empty stack.",
+        "Queues are used in Operating Systems for job scheduling and buffer management."
       ],
-      memoryTricks: "அடுக்கு (Stack) என்பது திருமண விருந்தில் ஒன்றன் மேல் ஒன்றாக அடுக்கி வைக்கப்பட்டுள்ள உணவுக் தட்டுகள் போன்றது (கடைசியாக வைத்த தட்டைத்தான் முதலில் எடுப்போம்). வரிசை (Queue) என்பது பேருந்து நிலையக் கட்டண கவுண்டரில் மக்கள் நிற்கும் வரிசை போன்றது (முதலில் வந்தவர் முதலில் டிக்கெட் பெறுவார்)."
+      memoryTricks: "Stack is like a pile of dinner plates (உணவுத் தட்டுகளின் அடுக்கு) - you always take the top plate first. Queue is like people waiting in line at a bus stop (பேருந்து வரிசை) - the first person in line gets on the bus first.",
+      visualDiagram: {
+        type: "flowchart",
+        title: "Stack (LIFO) and Queue (FIFO) Operations (அடுக்கு மற்றும் வரிசைச் செயல்பாடுகள்)",
+        nodes: [
+          { id: "stk_in", labelEnglish: "Push element", labelTamil: "உறுப்பைச் சேர்த்தல்" },
+          { id: "stk_top", labelEnglish: "Stack Top (LIFO)", labelTamil: "அடுக்கின் உச்சி" },
+          { id: "stk_out", labelEnglish: "Pop element", labelTamil: "உறுப்பை நீக்குதல்" },
+          { id: "q_rear", labelEnglish: "Queue Rear (Enqueue)", labelTamil: "வரிசையின் பின்புறம்" },
+          { id: "q_front", labelEnglish: "Queue Front (Dequeue)", labelTamil: "வரிசையின் முன்புறம்" }
+        ],
+        edges: [
+          { from: "stk_in", to: "stk_top", label: "Push (சேர்க்க)" },
+          { from: "stk_top", to: "stk_out", label: "Pop (நீக்க)" },
+          { from: "q_rear", to: "q_front", label: "FIFO Flow" }
+        ]
+      }
     },
     {
       topicName: "Binary Trees & BST (இருபடி மரங்கள் மற்றும் தேடல் மரங்கள்)",
-      tamilExplanation: "மரம் (Tree) என்பது ஒரு படிநிலை தரவு அமைப்பாகும் (Hierarchical Data Structure). இருபடி மரம் (Binary Tree) என்பது ஒவ்வொரு நோடும் அதிகபட்சமாக இரண்டு குழந்தைகளைக் (Left Child and Right Child) கொண்டிருக்கக்கூடிய மரமாகும். இருபடி தேடல் மரம் (Binary Search Tree - BST) என்பது ஒரு சிறப்பு வகை இருபடி மரமாகும், இங்கு ஒரு நோடின் இடதுபுறக் குழந்தையின் மதிப்பு அந்த நோடின் மதிப்பை விடக் குறைவாகவும், வலதுபுறக் குழந்தையின் மதிப்பு அதிகமாகவும் இருக்கும்.",
+      tamilExplanation: "English Explanation:\nA Tree is a hierarchical non-linear data structure consisting of nodes connected by edges. A Binary Tree restricts each node to have at most two children (Left and Right). A Binary Search Tree (BST) is a sorted binary tree where the left child of a node contains a value less than the node, and the right child contains a value greater, enabling O(log n) search, insertion, and deletion speeds.\n\nதமிழ் விளக்கம்:\nமரம் (Tree) என்பது ஒரு படிநிலை தரவு அமைப்பாகும் (Hierarchical Data Structure). இருபடி மரம் (Binary Tree) என்பது ஒவ்வொரு நோடும் அதிகபட்சமாக இரண்டு குழந்தைகளைக் (Left Child and Right Child) கொண்டிருக்கக்கூடிய மரமாகும். இருபடி தேடல் மரம் (Binary Search Tree - BST) என்பது ஒரு சிறப்பு வகை இருபடி மரமாகும், இங்கு ஒரு நோடின் இடதுபுறக் குழந்தையின் மதிப்பு அந்த நோடின் மதிப்பை விடக் குறைவாகவும், வலதுபுறக் குழந்தையின் மதிப்பு அதிகமாகவும் இருக்கும். இது O(log n) தேடுதல் வேகத்தை வழங்குகிறது.",
       shortNotes: [
-        "மரம் படிநிலைத் தரவைக் குறிக்கப் பயன்படுகிறது (கோப்பு முறைமைகள் போன்றவை).",
-        "BST-இல் தேடுதல், செருகுதல், நீக்குதல் ஆகியவற்றின் சராசரி நேரச் சிக்கல்தன்மை O(log n) ஆகும்.",
-        "மரக் கடப்பு முறைகள் (Traversals) மூன்று வகைப்படும்: Inorder (இடது, வேர், வலது), Preorder (வேர், இடது, வலது), Postorder (இடது, வலது, வேர்)."
+        "Tree is non-linear (நேரியல் அல்லாதது) representing hierarchical relations.",
+        "BST ensures: Left Child < Root < Right Child for quick search.",
+        "Tree Traversals: Inorder (L-Root-R), Preorder (Root-L-R), Postorder (L-R-Root)."
       ],
       importantPoints: [
-        "BST-இல் Inorder கடப்பைச் செய்யும் போது எண்கள் ஏறுவரிசையில் (Sorted Order) கிடைக்கும்.",
-        "மரத்தின் மிக உயர்ந்த நோடு 'Root' (வேர் நோடு) எனப்படும்.",
-        "குழந்தைகள் இல்லாத நோடுகள் 'Leaves' (இலை நோடுகள்) எனப்படும்."
+        "Inorder traversal of BST always produces elements in sorted ascending order (ஏறுவரிசை).",
+        "The topmost node of a tree is called the Root (வேர் நோடு).",
+        "Nodes with no children are called Leaf Nodes (இலை நோடுகள்)."
       ],
-      memoryTricks: "ஒரு நிறுவனத்தின் மேலாண்மைப் படிநிலையை (Organizational Hierarchy) நினைவில் கொள்ளுங்கள்: CEO (Root) மேலே இருக்கிறார், அவருக்குக் கீழ் இரண்டு மேலாளர்கள் (Left & Right Children), அவர்களுக்குக் கீழ் பணியாளர்கள் (Leaves) இருக்கிறார்கள்!"
+      memoryTricks: "A Tree is like a company's organizational chart (நிறுவன படிநிலை): CEO (Root) sits at the top, Directors (Children) are in the middle, and Individual Contributors (Leaves) are at the bottom!",
+      visualDiagram: {
+        type: "tree",
+        title: "Binary Search Tree (BST) Hierarchy (இருபடி தேடல் மரத்தின் படிநிலை)",
+        nodes: [
+          { id: "root", labelEnglish: "Root: 50", labelTamil: "வேர்: 50", description: "All left values < 50, all right values > 50" },
+          { id: "left", labelEnglish: "Left: 30", labelTamil: "இடது: 30", description: "Less than 50" },
+          { id: "right", labelEnglish: "Right: 70", labelTamil: "வலது: 70", description: "Greater than 50" },
+          { id: "left_left", labelEnglish: "Leaf: 20", labelTamil: "இலை: 20", description: "Less than 30" },
+          { id: "left_right", labelEnglish: "Leaf: 40", labelTamil: "இலை: 40", description: "Greater than 30" }
+        ],
+        edges: [
+          { from: "root", to: "left", label: "Left Child" },
+          { from: "root", to: "right", label: "Right Child" },
+          { from: "left", to: "left_left", label: "Left" },
+          { from: "left", to: "left_right", label: "Right" }
+        ]
+      }
     }
   ],
   questions: {
     twoMarks: [
       {
         question: "What is Time Complexity? (நேரச் சிக்கல்தன்மை என்றால் என்ன?)",
-        answerTamil: "நேரச் சிக்கல்தன்மை (Time Complexity) என்பது ஒரு அல்காரிதம் அதன் உள்ளீட்டு அளவைப் (Input Size - n) பொறுத்து இயங்குவதற்கு எடுத்துக்கொள்ளும் நேரத்தைக் குறிக்கும் கணக்கீட்டு அளவீடாகும். இது பொதுவாக பிக்-ஓ குறியீட்டில் (Big-O Notation) குறிக்கப்படுகிறது."
+        answerTamil: "English Key Answer:\nTime Complexity is a computational measure that describes the amount of time an algorithm takes to run as a function of its input size (n), commonly represented in Big-O notation.\n\nதமிழ் விடை:\nநேரச் சிக்கல்தன்மை (Time Complexity) என்பது ஒரு அல்காரிதம் அதன் உள்ளீட்டு அளவைப் (Input Size - n) பொறுத்து இயங்குவதற்கு எடுத்துக்கொள்ளும் நேரத்தைக் குறிக்கும் கணக்கீட்டு அளவீடாகும். இது பொதுவாக பிக்-ஓ குறியீட்டில் (Big-O Notation) குறிக்கப்படுகிறது.",
+        answerEnglish: "Time Complexity is a computational measure that describes the amount of time an algorithm takes to run as a function of its input size (n), commonly represented in Big-O notation."
       },
       {
         question: "Differentiate between LIFO and FIFO. (LIFO மற்றும் FIFO வேறுபடுத்துக.)",
-        answerTamil: "LIFO (Last In First Out) என்பது கடைசியாகச் சேர்க்கப்படும் உறுப்பு முதலில் நீக்கப்படும் முறையாகும்; இது Stack-ல் பயன்படுகிறது. FIFO (First In First Out) என்பது முதலில் சேர்க்கப்படும் உறுப்பு முதலில் நீக்கப்படும் முறையாகும்; இது Queue-ல் பயன்படுகிறது."
+        answerTamil: "English Key Answer:\nLIFO (Last In First Out) means the last inserted element is removed first, used in Stacks. FIFO (First In First Out) means the first inserted element is removed first, used in Queues.\n\nதமிழ் விடை:\nLIFO (Last In First Out) என்பது கடைசியாகச் சேர்க்கப்படும் உறுப்பு முதலில் நீக்கப்படும் முறையாகும்; இது Stack-ல் பயன்படுகிறது. FIFO (First In First Out) என்பது முதலில் சேர்க்கப்படும் உறுப்பு முதலில் நீக்கப்படும் முறையாகும்; இது Queue-ல் பயன்படுகிறது.",
+        answerEnglish: "LIFO (Last In First Out) means the last inserted element is removed first, used in Stacks. FIFO (First In First Out) means the first inserted element is removed first, used in Queues."
       }
     ],
     fiveMarks: [
       {
         question: "Explain the operations of Stack with neat diagrams. (அடுக்கின் (Stack) செயல்பாடுகளைப் படங்களுடன் விளக்குக.)",
-        answerTamil: "Stack-ல் இரண்டு முக்கிய செயல்பாடுகள் உள்ளன:\n\n1. **Push Operation (தரவைச் சேர்த்தல்)**: Stack-ன் மேல் பகுதியில் (Top) ஒரு புதிய உறுப்பைச் சேர்ப்பதாகும். இதைப் படம் மூலம் விளக்கும்போது, அடுக்குத் தட்டுகளின் மேல் தட்டு வைப்பது போல் வரைய வேண்டும்.\n\n2. **Pop Operation (தரவை நீக்குதல்)**: Stack-ன் மேல் பகுதியில் இருக்கும் உறுப்பை வெளியே எடுப்பதாகும். படம் மூலம் மேல் தட்டை நீக்குவதைக் காட்ட வேண்டும்.\n\n3. **Peek/Top Operation**: Stack-லிருந்து உறுப்பை நீக்காமல், மேல் உள்ள உறுப்பின் மதிப்பை மட்டும் பார்ப்பதாகும்.\n\nStack-ன் செயல்பாடு LIFO (Last In First Out) முறையைப் பின்பற்றுகிறது. இதன் அனைத்துச் செயல்பாடுகளும் O(1) நேரச் சிக்கல்தன்மையைக் கொண்டுள்ளன."
+        answerTamil: "English Explanation:\n1. Push Operation: Adds an element to the top of the stack. If the stack is full, it causes a Stack Overflow.\n2. Pop Operation: Removes the topmost element. If the stack is empty, it causes a Stack Underflow.\n3. Peek Operation: Retrieves the top element value without removing it.\nThis follows LIFO (Last In First Out) and all operations take O(1) constant time.\n\nதமிழ் விளக்கம்:\nStack-ல் மூன்று முக்கிய செயல்பாடுகள் உள்ளன:\n1. **Push Operation (தரவைச் சேர்த்தல்)**: Stack-ன் மேல் பகுதியில் (Top) ஒரு புதிய உறுப்பைச் சேர்ப்பதாகும். இது அடுக்கின் கொள்ளளவை தாண்டினால் Stack Overflow எனப்படும்.\n2. **Pop Operation (தரவை நீக்குதல்)**: Stack-ன் மேல் பகுதியில் இருக்கும் உறுப்பை வெளியே எடுப்பதாகும். காலியாக இருந்தால் Stack Underflow எனப்படும்.\n3. **Peek/Top Operation**: Stack-லிருந்து உறுப்பை நீக்காமல், மேல் உள்ள உறுப்பின் மதிப்பை மட்டும் பார்ப்பதாகும்.",
+        answerEnglish: "1. Push Operation: Adds an element to the top of the stack. If the stack is full, it causes a Stack Overflow.\n2. Pop Operation: Removes the topmost element. If the stack is empty, it causes a Stack Underflow.\n3. Peek Operation: Retrieves the top element value without removing it.\nThis follows LIFO (Last In First Out) and all operations take O(1) constant time."
       },
       {
         question: "Explain Binary Search Tree (BST) insertion with an example. (இருபடி தேடல் மரத்தில் (BST) உறுப்பைச் செருகுவதை உதாரணத்துடன் விளக்குக.)",
-        answerTamil: "BST-இல் ஒரு உறுப்பைச் செருகும்போது பின்வரும் விதிகள் பின்பற்றப்படுகின்றன:\n\n1. மரம் காலியாக இருந்தால், புதிய உறுப்பை Root நோடாக மாற்றவும்.\n2. புதிய உறுப்பு Root-ஐ விடக் குறைவாக இருந்தால், இடது புறத் துணை மரத்திற்குச் (Left Subtree) செல்லவும்.\n3. புதிய உறுப்பு Root-ஐ விட அதிகமாக இருந்தால், வலது புறத் துணை மரத்திற்குச் (Right Subtree) செல்லவும்.\n\n**உதாரணம்**: 50, 30, 70, 20, 40 ஆகிய எண்களைச் செருகும் முறை:\n- முதலில் 50 தான் Root.\n- 30 என்பது 50-ஐ விடக் குறைவு என்பதால் 50-க்கு இடதுபுறம் செல்லும்.\n- 70 என்பது 50-ஐ விட அதிகம் என்பதால் 50-க்கு வலதுபுறம் செல்லும்.\n- 20 என்பது 50 மற்றும் 30-ஐ விடக் குறைவு என்பதால் 30-க்கு இடதுபுறம் செல்லும்."
+        answerTamil: "English Explanation:\n1. If the tree is empty, make the new element the Root node.\n2. If the new value is less than root, move recursively to the Left Subtree.\n3. If the new value is greater than root, move recursively to the Right Subtree.\nFor example, inserting [50, 30, 70, 20]: 50 becomes root. 30 goes Left of 50. 70 goes Right of 50. 20 goes Left of 30.\n\nதமிழ் விளக்கம்:\nBST-இல் ஒரு உறுப்பைச் செருகும்போது பின்வரும் விதிகள் பின்பற்றப்படுகின்றன:\n1. மரம் காலியாக இருந்தால், புதிய உறுப்பை Root நோடாக மாற்றவும்.\n2. புதிய உறுப்பு Root-ஐ விடக் குறைவாக இருந்தால், இடது புறத் துணை மரத்திற்குச் (Left Subtree) செல்லவும்.\n3. புதிய உறுப்பு Root-ஐ விட அதிகமாக இருந்தால், வலது புறத் துணை மரத்திற்குச் (Right Subtree) செல்லவும்.\n\n**உதாரணம்**: 50, 30, 70, 20 ஆகிய எண்களைச் செருகும் முறை:\n- முதலில் 50 தான் Root.\n- 30 என்பது 50-ஐ விடக் குறைவு என்பதால் 50-க்கு இடதுபுறம் செல்லும்.\n- 70 என்பது 50-ஐ விட அதிகம் என்பதால் 50-க்கு வலதுபுறம் செல்லும்.\n- 20 என்பது 30-ஐ விடக் குறைவு என்பதால் 30-க்கு இடதுபுறம் செல்லும்.",
+        answerEnglish: "1. If the tree is empty, make the new element the Root node.\n2. If the new value is less than root, move recursively to the Left Subtree.\n3. If the new value is greater than root, move recursively to the Right Subtree.\nFor example, inserting [50, 30, 70, 20]: 50 becomes root. 30 goes Left of 50. 70 goes Right of 50. 20 goes Left of 30."
       }
     ],
     tenMarks: [
       {
         question: "Detail the differences between Sequential Access and Random Access data structures. (வரிசைமுறை அணுகல் மற்றும் சீரற்ற அணுகல் தரவு அமைப்புகளை விரிவாக வேறுபடுத்துக.)",
-        answerTamil: "இந்த இரண்டு அணுகல் முறைகளுக்கும் இடையிலான முக்கிய வேறுபாடுகள்:\n\n1. **நினைவக ஒதுக்கீடு (Memory Allocation)**:\n   - **Sequential (Linked List)**: நினைவகம் சிதறி இருக்கும் (Non-contiguous memory allocation). நோடுகள் பாயிண்டர்கள் மூலம் இணைக்கப்படுகின்றன.\n   - **Random (Array)**: நினைவகம் தொடர்ச்சியாக ஒதுக்கப்படுகிறது (Contiguous memory allocation).\n\n2. **தரவு அணுகல் வேகம் (Data Access Speed)**:\n   - **Sequential**: ஒரு குறிப்பிட்ட உறுப்பை அணுக வேண்டுமெனில், ஆரம்ப நோடிலிருந்து வரிசையாகக் கடந்துதான் செல்ல முடியும். நேரக் சிக்கல்தன்மை O(n) ஆகும்.\n   - **Random**: குறியீட்டு எண் (Index) மூலம் எந்தவொரு உறுப்பையும் நேரடியாக அணுகலாம். நேரக் சிக்கல்தன்மை O(1) ஆகும்.\n\n3. **நினைவக விரயம் (Memory Overhead)**:\n   - **Sequential**: ஒவ்வொரு நோடும் தரவோடு சேர்த்து முகவரியைச் சேமிக்க பாயிண்டரைக் கொண்டிருப்பதால் கூடுதல் நினைவகம் தேவைப்படும்.\n   - **Random**: பாயிண்டர்கள் இல்லாததால் கூடுதல் நினைவகம் தேவையில்லை, ஆனால் நிலையான அளவு என்பதால் பயன்படுத்தாத இடங்கள் வீணாகும்.\n\n4. **செருகுதல் மற்றும் நீக்குதல் செயல்பாடு (Insertion and Deletion)**:\n   - **Sequential**: பாயிண்டர்களை மாற்றுவதன் மூலம் மிக எளிதாகவும் வேகமாகவும் செய்யலாம் - O(1).\n   - **Random**: உறுப்புகளை நகர்த்த (Shifting) வேண்டியிருப்பதால் மெதுவாக நடக்கும் - O(n)."
+        answerTamil: "English Explanation:\n1. Memory Allocation: Sequential (Linked List) uses non-contiguous scattered nodes with pointers. Random (Array) uses a solid contiguous block of memory.\n2. Access Speed: Sequential requires traversing elements from the head O(n). Random allows direct element access using index O(1).\n3. Overhead: Sequential has extra memory overhead for pointers. Random has no pointer overhead but has potential memory wastage due to fixed static size.\n4. Editing: Sequential offers fast O(1) insertions/deletions. Random requires heavy O(n) element shifting.\n\nதமிழ் விளக்கம்:\nஇந்த இரண்டு அணுகல் முறைகளுக்கும் இடையிலான முக்கிய வேறுபாடுகள்:\n1. **நினைவக ஒதுக்கீடு (Memory Allocation)**:\n   - **Sequential (Linked List)**: நினைவகம் சிதறி இருக்கும் (Non-contiguous). நோடுகள் பாயிண்டர்கள் மூலம் இணைக்கப்படுகின்றன.\n   - **Random (Array)**: நினைவகம் தொடர்ச்சியாக ஒதுக்கப்படுகிறது (Contiguous memory allocation).\n2. **தரவு அணுகல் வேகம் (Data Access Speed)**:\n   - **Sequential**: ஒரு குறிப்பிட்ட உறுப்பை அணுக, ஆரம்ப நோடிலிருந்து வரிசையாகக் கடந்துதான் செல்ல வேண்டும் - O(n).\n   - **Random**: குறியீட்டு எண் (Index) மூலம் எந்தவொரு உறுப்பையும் நேரடியாக அணுகலாம் - O(1).\n3. **நினைவக விரயம் (Memory Overhead)**:\n   - **Sequential**: ஒவ்வொரு நோடும் பாயிண்டரைக் கொண்டிருப்பதால் கூடுதல் நினைவகம் தேவைப்படும்.\n   - **Random**: பாயிண்டர்கள் இல்லாததால் கூடுதல் நினைவகம் தேவையில்லை, ஆனால் பயன்படுத்தாத இடங்கள் வீணாகும்.\n4. **செருகுதல் மற்றும் நீக்குதல் செயல்பாடு (Insertion and Deletion)**:\n   - **Sequential**: பாயிண்டர்களை மாற்றுவதன் மூலம் மிக எளிதாகவும் வேகமாகவும் செய்யலாம் - O(1).\n   - **Random**: உறுப்புகளை நகர்த்த (Shifting) வேண்டியிருப்பதால் மெதுவாக நடக்கும் - O(n).",
+        answerEnglish: "1. Memory Allocation: Sequential (Linked List) uses non-contiguous scattered nodes with pointers. Random (Array) uses a solid contiguous block of memory.\n2. Access Speed: Sequential requires traversing elements from the head O(n). Random allows direct element access using index O(1).\n3. Overhead: Sequential has extra memory overhead for pointers. Random has no pointer overhead but has potential memory wastage due to fixed static size.\n4. Editing: Sequential offers fast O(1) insertions/deletions. Random requires heavy O(n) element shifting."
       }
     ],
     mcqs: [

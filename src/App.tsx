@@ -23,7 +23,9 @@ import {
   Trash2,
   ThumbsUp,
   Sliders,
-  ExternalLink
+  ExternalLink,
+  Sun,
+  Moon
 } from "lucide-react";
 import { prepopulatedSubject } from "./prepopulated";
 import {
@@ -35,6 +37,8 @@ import {
   MockTestEvaluation,
   ChatMessage
 } from "./types";
+import TopicVisualizer from "./components/TopicVisualizer";
+import { translations } from "./translations";
 
 export default function App() {
   // Active subject state
@@ -49,6 +53,99 @@ export default function App() {
   const [studyTime, setStudyTime] = useState("2 hours");
 
   // App UI states
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
+    return localStorage.getItem("study_master_dark_mode") === "true";
+  });
+
+  const [selectedLanguage, setSelectedLanguage] = useState<"english" | "tamil">(() => {
+    const saved = localStorage.getItem("study_master_language");
+    if (saved === "english" || saved === "tamil") {
+      return saved;
+    }
+    return "english";
+  });
+
+  useEffect(() => {
+    localStorage.setItem("study_master_language", selectedLanguage);
+  }, [selectedLanguage]);
+
+  // Translate helper function using translations dictionary
+  const t = (key: keyof typeof translations.en, replacements?: Record<string, string | number>): string => {
+    const lang = selectedLanguage === "tamil" ? "ta" : "en";
+    let dictValue = translations[lang][key] || translations["en"][key] || String(key);
+    if (replacements) {
+      Object.entries(replacements).forEach(([k, v]) => {
+        dictValue = dictValue.split(`{${k}}`).join(String(v));
+      });
+    }
+    return dictValue;
+  };
+
+  // Helper to extract English or Tamil parts from bilingual strings
+  const formatBilingualText = (text: string, lang: "english" | "tamil"): string => {
+    if (!text) return "";
+    
+    // Check if the string has a standard bilingual parenthesis structure, e.g., "English (Tamil)"
+    // or "Something in English (ஏதாவது தமிழில்)"
+    const parenMatch = text.match(/^([^(]+)\s*\(([^)]+)\)$/);
+    if (parenMatch) {
+      const englishPart = parenMatch[1].trim();
+      const tamilPart = parenMatch[2].trim();
+      if (lang === "english") return englishPart;
+      if (lang === "tamil") return tamilPart;
+      return text;
+    }
+
+    // Check if separated by "/" e.g., "English / Tamil"
+    if (text.includes(" / ")) {
+      const parts = text.split(" / ");
+      if (parts.length >= 2) {
+        if (lang === "english") return parts[0].trim();
+        if (lang === "tamil") return parts[1].trim();
+      }
+    }
+
+    // Default fallback
+    return text;
+  };
+
+  // Helper to split a combined notes explanation into English and Tamil segments
+  const splitExplanation = (explanation: string): { english: string; tamil: string } => {
+    if (!explanation) return { english: "", tamil: "" };
+
+    const englishMarker = "English Explanation:";
+    const tamilMarker = "தமிழ் விளக்கம்:";
+
+    const englishIndex = explanation.indexOf(englishMarker);
+    const tamilIndex = explanation.indexOf(tamilMarker);
+
+    if (englishIndex !== -1 && tamilIndex !== -1) {
+      let englishText = "";
+      let tamilText = "";
+
+      if (englishIndex < tamilIndex) {
+        englishText = explanation.substring(englishIndex + englishMarker.length, tamilIndex).trim();
+        tamilText = explanation.substring(tamilIndex + tamilMarker.length).trim();
+      } else {
+        tamilText = explanation.substring(tamilIndex + tamilMarker.length, englishIndex).trim();
+        englishText = explanation.substring(englishIndex + englishMarker.length).trim();
+      }
+      return { english: englishText, tamil: tamilText };
+    }
+
+    // Try alternate format with lower/upper cases or simple fallback
+    return { english: "", tamil: explanation };
+  };
+
+  useEffect(() => {
+    localStorage.setItem("study_master_dark_mode", String(isDarkMode));
+    if (isDarkMode) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, [isDarkMode]);
+
   const [activeTab, setActiveTab] = useState<"analysis" | "notes" | "questions" | "plan" | "exam">("analysis");
   const [isCreatingSubject, setIsCreatingSubject] = useState(false);
   const [loadingStep, setLoadingStep] = useState<number | null>(null);
@@ -141,7 +238,7 @@ export default function App() {
       const analysisRes = await fetch("/api/step1-analysis", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ course, subject: subjectName, syllabus: syllabusRaw, examDate, studyTime }),
+        body: JSON.stringify({ course, subject: subjectName, syllabus: syllabusRaw, examDate, studyTime, language: selectedLanguage }),
       });
       if (!analysisRes.ok) throw new Error("Step 1 Analysis failed");
       const analysisData = await analysisRes.json();
@@ -160,7 +257,7 @@ export default function App() {
       const notesRes = await fetch("/api/step2-notes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ course, subject: analysisData.subjectName, topics: allTopics }),
+        body: JSON.stringify({ course, subject: analysisData.subjectName, topics: allTopics, language: selectedLanguage }),
       });
       if (!notesRes.ok) throw new Error("Step 2 Notes generation failed");
       const notesData = await notesRes.json();
@@ -171,7 +268,7 @@ export default function App() {
       const questionsRes = await fetch("/api/step3-questions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ course, subject: analysisData.subjectName, syllabusBrief: syllabusRaw }),
+        body: JSON.stringify({ course, subject: analysisData.subjectName, syllabusBrief: syllabusRaw, language: selectedLanguage }),
       });
       if (!questionsRes.ok) throw new Error("Step 3 Questions generation failed");
       const questionsData = await questionsRes.json();
@@ -182,7 +279,7 @@ export default function App() {
       const planRes = await fetch("/api/step4-plan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ course, subject: analysisData.subjectName, topics: allTopics, examDate, studyTime }),
+        body: JSON.stringify({ course, subject: analysisData.subjectName, topics: allTopics, examDate, studyTime, language: selectedLanguage }),
       });
       if (!planRes.ok) throw new Error("Step 4 Plan generation failed");
       const planData = await planRes.json();
@@ -241,7 +338,9 @@ export default function App() {
 
   // Delete a subject workspace
   const handleDeleteSubject = (id: string, name: string) => {
-    if (confirm(`"${name}" பாடத்தின் மொத்த தரவையும் நீக்க விரும்புகிறீர்களா?`)) {
+    const formattedName = formatBilingualText(name, selectedLanguage);
+    const confirmMsg = t("confirm_delete", { name: formattedName });
+    if (confirm(confirmMsg)) {
       const remaining = subjects.filter(s => s.id !== id);
       setSubjects(remaining);
       if (remaining.length > 0) {
@@ -296,7 +395,8 @@ export default function App() {
           question: examQuestion,
           marks: examMarks,
           studentAnswer,
-          subjectName: activeSubject?.subjectName
+          subjectName: activeSubject?.subjectName,
+          language: selectedLanguage
         })
       });
       if (!response.ok) throw new Error("평가에 실패했습니다.");
@@ -352,7 +452,8 @@ export default function App() {
           course: activeSubject.course,
           subject: activeSubject.subjectName,
           message: userMsg.text,
-          history: chatHistory.map(h => ({ role: h.role, text: h.text }))
+          history: chatHistory.map(h => ({ role: h.role, text: h.text })),
+          language: selectedLanguage
         })
       });
 
@@ -396,19 +497,19 @@ export default function App() {
     : "";
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-slate-800 font-sans flex flex-col antialiased">
+    <div className="min-h-screen bg-[#f8fafc] dark:bg-[#0b0f19] text-slate-800 dark:text-slate-100 font-sans flex flex-col antialiased transition-colors duration-300">
       {/* Top Banner / Navbar */}
-      <header className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-xs px-4 py-3 sm:px-6">
+      <header className="sticky top-0 z-40 bg-white dark:bg-[#131c31] border-b border-slate-200 dark:border-[#1e2d4d] shadow-xs px-4 py-3 sm:px-6 transition-colors duration-300">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-3">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold shadow-md shadow-indigo-100">
               <BookOpen className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="text-xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-                Study Master AI <span className="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md font-medium border border-indigo-100">ஸ்டடி மாஸ்டர் ஏஐ</span>
+              <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
+                {t("app_title")} <span className="text-xs bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 rounded-md font-medium border border-indigo-100 dark:border-indigo-900/40">{selectedLanguage === "english" ? "AI Study Companion" : "ஏஐ துணைவன்"}</span>
               </h1>
-              <p className="text-xs text-slate-500">உங்களின் தனிப்பட்ட தேர்வுத் தயாரிப்பு துணைவன்</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">{t("app_subtitle")}</p>
             </div>
           </div>
 
@@ -423,15 +524,49 @@ export default function App() {
                   setEvaluationResult(null);
                   setExamQuestion("");
                 }}
-                className="bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-colors"
+                className="bg-slate-50 dark:bg-[#1c2842] hover:bg-slate-100 dark:hover:bg-[#233355] text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-[#293c61] rounded-lg px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-colors"
               >
                 {subjects.map((sub) => (
                   <option key={sub.id} value={sub.id}>
-                    {sub.subjectName.substring(0, 30)}...
+                    {formatBilingualText(sub.subjectName, selectedLanguage).substring(0, 30)}...
                   </option>
                 ))}
               </select>
             )}
+
+            <button
+              onClick={() => setIsDarkMode(!isDarkMode)}
+              className="p-2 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#1a2642] rounded-lg transition-colors cursor-pointer"
+              title={isDarkMode ? t("light_mode") : t("dark_mode")}
+            >
+              {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-indigo-500" />}
+            </button>
+
+            {/* Language Switcher Segmented Control */}
+            <div className="flex bg-slate-100 dark:bg-[#1a2642] p-1 rounded-lg border border-slate-200/50 dark:border-[#293c61]">
+              <button
+                onClick={() => setSelectedLanguage("english")}
+                className={`px-3 py-1 rounded-md text-[10px] sm:text-xs font-bold transition-all cursor-pointer ${
+                  selectedLanguage === "english"
+                    ? "bg-white dark:bg-[#131c31] text-indigo-600 dark:text-indigo-400 shadow-xs"
+                    : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                }`}
+                title="English"
+              >
+                English
+              </button>
+              <button
+                onClick={() => setSelectedLanguage("tamil")}
+                className={`px-3 py-1 rounded-md text-[10px] sm:text-xs font-bold transition-all cursor-pointer ${
+                  selectedLanguage === "tamil"
+                    ? "bg-white dark:bg-[#131c31] text-indigo-600 dark:text-indigo-400 shadow-xs"
+                    : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                }`}
+                title="தமிழ்"
+              >
+                தமிழ்
+              </button>
+            </div>
 
             <button
               id="new-workspace-btn"
@@ -439,7 +574,7 @@ export default function App() {
               className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg px-4 py-2 text-sm flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer"
             >
               <Plus className="w-4 h-4" />
-              <span>புதிய பாடத்திட்டம் (Add Subject)</span>
+              <span>{t("new_subject_btn")}</span>
             </button>
           </div>
         </div>
@@ -452,54 +587,56 @@ export default function App() {
         {activeSubject && (
           <div className="w-full lg:w-80 flex flex-col gap-5 shrink-0">
             {/* Subject Identity Info */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs">
-              <span className="text-xs font-semibold text-indigo-600 tracking-wider uppercase block mb-1">
+            <div className="bg-white dark:bg-[#131c31] rounded-2xl border border-slate-200 dark:border-[#1e2d4d] p-5 shadow-xs transition-colors">
+              <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 tracking-wider uppercase block mb-1">
                 {activeSubject.course}
               </span>
-              <h2 className="text-lg font-bold text-slate-900 leading-snug">
-                {activeSubject.subjectName}
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white leading-snug">
+                {formatBilingualText(activeSubject.subjectName, selectedLanguage)}
               </h2>
-              <div className="mt-4 pt-4 border-t border-slate-100 flex flex-col gap-2.5 text-sm text-slate-600">
+              <div className="mt-4 pt-4 border-t border-slate-100 dark:border-[#1e2d4d] flex flex-col gap-2.5 text-sm text-slate-600 dark:text-slate-300">
                 <div className="flex justify-between">
-                  <span className="text-slate-400">தேர்வு நாள் (Exam Date):</span>
-                  <span className="font-semibold text-slate-800">{activeSubject.examDate || "Not Set"}</span>
+                  <span className="text-slate-400">{selectedLanguage === "english" ? "Exam Date:" : "தேர்வு தேதி:"}</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-100">
+                    {activeSubject.examDate ? new Date(activeSubject.examDate).toLocaleDateString(selectedLanguage === "english" ? "en-US" : "ta-IN", { year: "numeric", month: "short", day: "numeric" }) : (selectedLanguage === "english" ? "Not Set" : "குறிப்பிடப்படவில்லை")}
+                  </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">படிக்கும் நேரம் (Study Time):</span>
-                  <span className="font-semibold text-slate-800">{activeSubject.studyTime}</span>
+                  <span className="text-slate-400">{selectedLanguage === "english" ? "Study Time:" : "படிக்கும் நேரம்:"}</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-100">{activeSubject.studyTime}</span>
                 </div>
               </div>
             </div>
 
             {/* Preparation Level Progress (📊 Preparation Level in POML) */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs">
+            <div className="bg-white dark:bg-[#131c31] rounded-2xl border border-slate-200 dark:border-[#1e2d4d] p-5 shadow-xs transition-colors">
               <div className="flex justify-between items-center mb-3">
-                <span className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
+                <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
                   <Award className="w-4 h-4 text-emerald-500" />
-                  <span>தயாரிப்பு நிலை (Prep Level)</span>
+                  <span>{t("prep_level")}</span>
                 </span>
-                <span className="text-lg font-bold text-emerald-600">{prepProgressPercent}%</span>
+                <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{prepProgressPercent}%</span>
               </div>
               
               {/* Progress Bar */}
-              <div className="w-full bg-slate-100 rounded-full h-2.5 mb-4 overflow-hidden">
+              <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2.5 mb-4 overflow-hidden">
                 <div
                   className="bg-emerald-500 h-2.5 rounded-full transition-all duration-500"
                   style={{ width: `${prepProgressPercent}%` }}
                 ></div>
               </div>
 
-              <p className="text-xs text-slate-500 leading-relaxed mb-4">
-                பாடத்திட்டத்தில் உள்ள <strong>{totalTopicsCount}</strong> முக்கிய தலைப்புகளில் <strong>{completedTopicsCount}</strong> தலைப்புகளை படித்து முடித்துள்ளீர்கள்.
+              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-4">
+                {t("topics_completed_desc", { completed: completedTopicsCount, total: totalTopicsCount })}
               </p>
 
               {/* Next Task recommendation (➡ Next Task in POML) */}
-              <div className="bg-indigo-50/70 border border-indigo-100/80 rounded-xl p-3">
-                <span className="text-[10px] font-bold text-indigo-700 uppercase tracking-wider block mb-1">
-                  ➡ அடுத்த பணி (Next Task)
+              <div className="bg-indigo-50/70 dark:bg-indigo-950/20 border border-indigo-100/80 dark:border-indigo-900/40 rounded-xl p-3">
+                <span className="text-[10px] font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider block mb-1">
+                  {t("next_task")}
                 </span>
-                <p className="text-xs font-semibold text-indigo-900 line-clamp-2">
-                  {nextRecommendedTopic}
+                <p className="text-xs font-semibold text-indigo-900 dark:text-indigo-200 line-clamp-2">
+                  {formatBilingualText(nextRecommendedTopic, selectedLanguage)}
                 </p>
                 {nextRecommendedTopic !== "All topics completed! 🎉" && (
                   <button
@@ -509,99 +646,99 @@ export default function App() {
                     }}
                     className="mt-2 text-xs text-indigo-700 hover:text-indigo-900 font-bold flex items-center gap-0.5 cursor-pointer"
                   >
-                    படிக்கத் தொடங்கு <ChevronRight className="w-3 h-3" />
+                    {t("start_studying")} <ChevronRight className="w-3 h-3" />
                   </button>
                 )}
               </div>
             </div>
 
             {/* Sub-steps navigation tabs (Step 1 to 5) */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-2 shadow-xs flex flex-col gap-1">
+            <div className="bg-white dark:bg-[#131c31] rounded-2xl border border-slate-200 dark:border-[#1e2d4d] p-2 shadow-xs flex flex-col gap-1 transition-colors">
               <button
                 onClick={() => setActiveTab("analysis")}
                 className={`w-full text-left px-4 py-3 rounded-xl text-sm font-medium transition-all flex items-center justify-between cursor-pointer ${
                   activeTab === "analysis"
-                    ? "bg-indigo-50 text-indigo-700"
-                    : "text-slate-600 hover:bg-slate-50"
+                    ? "bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300"
+                    : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-[#1a2642]"
                 }`}
               >
                 <span className="flex items-center gap-2.5">
                   <Compass className="w-4 h-4" />
-                  <span>Syllabus பகுப்பாய்வு</span>
+                  <span>{t("step1")}</span>
                 </span>
-                <span className="text-xs font-semibold text-slate-400">Step 1</span>
+                <span className="text-xs font-semibold text-slate-400 dark:text-slate-500">Step 1</span>
               </button>
 
               <button
                 onClick={() => setActiveTab("notes")}
                 className={`w-full text-left px-4 py-3 rounded-xl text-sm font-medium transition-all flex items-center justify-between cursor-pointer ${
                   activeTab === "notes"
-                    ? "bg-indigo-50 text-indigo-700"
-                    : "text-slate-600 hover:bg-slate-50"
+                    ? "bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300"
+                    : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-[#1a2642]"
                 }`}
               >
                 <span className="flex items-center gap-2.5">
                   <FileText className="w-4 h-4" />
-                  <span>பாடக் குறிப்புகள் (Notes)</span>
+                  <span>{t("step2")}</span>
                 </span>
-                <span className="text-xs font-semibold text-slate-400">Step 2</span>
+                <span className="text-xs font-semibold text-slate-400 dark:text-slate-500">Step 2</span>
               </button>
 
               <button
                 onClick={() => setActiveTab("questions")}
                 className={`w-full text-left px-4 py-3 rounded-xl text-sm font-medium transition-all flex items-center justify-between cursor-pointer ${
                   activeTab === "questions"
-                    ? "bg-indigo-50 text-indigo-700"
-                    : "text-slate-600 hover:bg-slate-50"
+                    ? "bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300"
+                    : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-[#1a2642]"
                 }`}
               >
                 <span className="flex items-center gap-2.5">
                   <HelpCircle className="w-4 h-4" />
-                  <span>வினா விடை வங்கி (Q&A)</span>
+                  <span>{t("step3")}</span>
                 </span>
-                <span className="text-xs font-semibold text-slate-400">Step 3</span>
+                <span className="text-xs font-semibold text-slate-400 dark:text-slate-500">Step 3</span>
               </button>
 
               <button
                 onClick={() => setActiveTab("plan")}
                 className={`w-full text-left px-4 py-3 rounded-xl text-sm font-medium transition-all flex items-center justify-between cursor-pointer ${
                   activeTab === "plan"
-                    ? "bg-indigo-50 text-indigo-700"
-                    : "text-slate-600 hover:bg-slate-50"
+                    ? "bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300"
+                    : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-[#1a2642]"
                 }`}
               >
                 <span className="flex items-center gap-2.5">
                   <Calendar className="w-4 h-4" />
-                  <span>படிப்புத் திட்டம் (Schedule)</span>
+                  <span>{t("step4")}</span>
                 </span>
-                <span className="text-xs font-semibold text-slate-400">Step 4</span>
+                <span className="text-xs font-semibold text-slate-400 dark:text-slate-500">Step 4</span>
               </button>
 
               <button
                 onClick={() => setActiveTab("exam")}
                 className={`w-full text-left px-4 py-3 rounded-xl text-sm font-medium transition-all flex items-center justify-between cursor-pointer ${
                   activeTab === "exam"
-                    ? "bg-indigo-50 text-indigo-700"
-                    : "text-slate-600 hover:bg-slate-50"
+                    ? "bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300"
+                    : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-[#1a2642]"
                 }`}
               >
                 <span className="flex items-center gap-2.5">
                   <Zap className="w-4 h-4" />
-                  <span>தேர்வு அரங்கம் (Exam Mode)</span>
+                  <span>{t("step5")}</span>
                 </span>
-                <span className="text-xs font-semibold text-slate-400">Step 5</span>
+                <span className="text-xs font-semibold text-slate-400 dark:text-slate-500">Step 5</span>
               </button>
             </div>
 
             {/* Quick Helper Links / Workspace manager */}
-            <div className="bg-slate-100 rounded-2xl p-4 border border-slate-200/60 text-xs flex justify-between items-center text-slate-500">
-              <span>சகல விவரங்களும் பாதுகாப்பாக சேமிக்கப்படும்</span>
+            <div className="bg-slate-100 dark:bg-[#1a2642]/40 rounded-2xl p-4 border border-slate-200/60 dark:border-[#1e2d4d] text-xs flex justify-between items-center text-slate-500 dark:text-slate-400">
+              <span>{t("all_saved_securely")}</span>
               <button
                 onClick={() => handleDeleteSubject(activeSubject.id, activeSubject.subjectName)}
                 className="text-red-500 hover:text-red-600 font-semibold flex items-center gap-0.5 cursor-pointer"
-                title="வொர்க்ஸ்பேஸ் நீக்கு"
+                title={t("delete_workspace_title")}
               >
-                <Trash2 className="w-3.5 h-3.5" /> Remove
+                <Trash2 className="w-3.5 h-3.5" /> {t("remove_workspace")}
               </button>
             </div>
           </div>
@@ -613,13 +750,13 @@ export default function App() {
             <div className="bg-rose-50 border border-rose-100 text-rose-800 rounded-xl p-4 flex gap-3 text-sm items-start">
               <AlertTriangle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
               <div>
-                <span className="font-semibold block">பிழை ஏற்பட்டது (Error):</span>
+                <span className="font-semibold block">{t("error_title")}</span>
                 <p className="mt-1">{apiError}</p>
                 <button
                   onClick={() => setApiError(null)}
                   className="mt-2 text-xs bg-rose-100 text-rose-800 px-2 py-1 rounded font-medium hover:bg-rose-200 transition-colors cursor-pointer"
                 >
-                  மூடு
+                  {t("close_btn")}
                 </button>
               </div>
             </div>
@@ -627,13 +764,18 @@ export default function App() {
 
           {!activeSubject ? (
             /* Blank state workspace if no subject is loaded/created */
-            <div className="bg-white rounded-3xl border border-slate-200 p-8 sm:p-12 text-center shadow-xs flex flex-col items-center justify-center max-w-2xl mx-auto my-12">
-              <div className="w-16 h-16 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-6">
-                <BookOpen className="w-8 h-8" />
+            <div className="bg-white dark:bg-[#131c31] rounded-3xl border border-slate-200 dark:border-[#1e2d4d] p-8 sm:p-12 text-center shadow-xs flex flex-col items-center justify-center max-w-2xl mx-auto my-12 transition-colors">
+              <div className="w-full max-w-md overflow-hidden rounded-2xl mb-6 shadow-sm border border-slate-100 dark:border-slate-800">
+                <img
+                  src="/src/assets/images/study_master_banner_1783569095165.jpg"
+                  alt="Study Master AI Banner"
+                  className="w-full h-auto object-cover"
+                  referrerPolicy="no-referrer"
+                />
               </div>
-              <h3 className="text-xl font-extrabold text-slate-900 mb-2">எந்த ஒரு பாடமும் தேர்ந்தெடுக்கப்படவில்லை</h3>
-              <p className="text-slate-500 text-sm max-w-md mb-8 leading-relaxed">
-                ஸ்டடி மாஸ்டர் ஏஐ உடன் பாடக் குறிப்புகள், படிப்புத் திட்டம் மற்றும் மாதிரித் தேர்வுகளை உருவாக்க, புதிய பாடத்திட்டத்தை சேர்க்கவும் அல்லது மாதிரிப் பாடத்தைப் பார்க்கவும்.
+              <h3 className="text-xl font-extrabold text-slate-900 dark:text-white mb-2">{t("no_subject_selected")}</h3>
+              <p className="text-slate-500 dark:text-slate-400 text-sm max-w-md mb-8 leading-relaxed">
+                {t("no_subject_desc")}
               </p>
               <div className="flex flex-col sm:flex-row gap-3">
                 <button
@@ -644,13 +786,13 @@ export default function App() {
                   className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-5 py-3 rounded-xl text-sm transition-colors cursor-pointer flex items-center justify-center gap-2"
                 >
                   <Compass className="w-4 h-4" />
-                  மாதிரிப் பாடம் பார்க்கவும் (Data Structures)
+                  {t("load_sample_subject")}
                 </button>
                 <button
                   onClick={() => setIsCreatingSubject(true)}
                   className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-5 py-3 rounded-xl text-sm shadow-md shadow-indigo-100 transition-colors cursor-pointer"
                 >
-                  சொந்தப் பாடத்தைச் சேர்க்க
+                  {t("add_own_subject")}
                 </button>
               </div>
             </div>
@@ -659,15 +801,17 @@ export default function App() {
             <>
               {/* STEP 1: Syllabus Analysis */}
               {activeTab === "analysis" && (
-                <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xs flex flex-col gap-6">
+                <div className="bg-white dark:bg-[#131c31] rounded-2xl border border-slate-200 dark:border-[#1e2d4d] p-5 sm:p-6 shadow-xs flex flex-col gap-6 transition-colors">
                   <div>
                     <div className="flex justify-between items-start gap-4 flex-wrap">
                       <div>
-                        <h3 className="text-lg font-bold text-slate-950 flex items-center gap-2">
-                          <Compass className="text-indigo-600 w-5 h-5" />
-                          <span>📚 Subject: {activeSubject.subjectName}</span>
+                        <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                          <Compass className="text-indigo-600 dark:text-indigo-400 w-5 h-5" />
+                          <span>{t("step1_title")}: {formatBilingualText(activeSubject.subjectName, selectedLanguage)}</span>
                         </h3>
-                        <p className="text-sm text-slate-500 mt-1">பாடத்திட்டத்தில் உள்ள அலகுகள் (Units) மற்றும் தலைப்புகள் ஆகியவற்றின் விரிவான பகுப்பாய்வு.</p>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                          {t("step1_desc")}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -675,32 +819,34 @@ export default function App() {
                   {/* Units rendering */}
                   <div className="flex flex-col gap-6">
                     {activeSubject.analysis.units.map((unit, uIdx) => (
-                      <div key={uIdx} className="border border-slate-100 rounded-xl overflow-hidden shadow-xs">
+                      <div key={uIdx} className="border border-slate-100 dark:border-[#1e2d4d] rounded-xl overflow-hidden shadow-xs">
                         {/* Unit Header */}
-                        <div className="bg-slate-50 px-4 py-3 border-b border-slate-100 flex justify-between items-center flex-wrap gap-2">
-                          <h4 className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+                        <div className="bg-slate-50 dark:bg-[#1a2642]/60 px-4 py-3 border-b border-slate-100 dark:border-[#1e2d4d] flex justify-between items-center flex-wrap gap-2">
+                          <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm flex items-center gap-1.5">
                             <span className="w-2.5 h-2.5 rounded-full bg-indigo-500"></span>
-                            {unit.name}
+                            {formatBilingualText(unit.name, selectedLanguage)}
                           </h4>
-                          <span className="text-xs font-semibold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded border border-indigo-100">
-                            {unit.topics.length} தலைப்புகள்
+                          <span className="text-xs font-semibold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 rounded border border-indigo-100 dark:border-indigo-900/40">
+                            {unit.topics.length} {t("step1_topics_count")}
                           </span>
                         </div>
 
                         {/* Topics Lists */}
-                        <div className="divide-y divide-slate-100">
+                        <div className="divide-y divide-slate-100 dark:divide-[#1e2d4d]">
                           {unit.topics.map((topic, tIdx) => {
                             const isTopicDone = activeSubject.completedTopics.includes(topic.name);
                             return (
                               <div
                                 key={tIdx}
                                 className={`p-4 sm:p-5 flex flex-col sm:flex-row gap-4 justify-between items-start transition-colors ${
-                                  isTopicDone ? "bg-emerald-50/20" : "hover:bg-slate-50/40"
+                                  isTopicDone ? "bg-emerald-500/10" : "hover:bg-slate-50/40 dark:hover:bg-[#1a2642]/30"
                                 }`}
                               >
                                 <div className="flex-1">
                                   <div className="flex items-center gap-2.5 flex-wrap mb-1.5">
-                                    <h5 className="font-bold text-slate-900 text-sm">{topic.name}</h5>
+                                    <h5 className="font-bold text-slate-900 dark:text-white text-sm">
+                                      {formatBilingualText(topic.name, selectedLanguage)}
+                                    </h5>
                                     
                                     {/* Difficulty and Importance tags */}
                                     <span
@@ -709,10 +855,14 @@ export default function App() {
                                           ? "bg-rose-50 text-rose-700 border border-rose-100"
                                           : topic.importance === "Medium"
                                           ? "bg-amber-50 text-amber-700 border border-amber-100"
-                                          : "bg-slate-50 text-slate-600 border border-slate-100"
+                                          : "bg-slate-50 dark:bg-[#1a2642] text-slate-600 dark:text-slate-300 border border-slate-100 dark:border-[#22355e]"
                                       }`}
                                     >
-                                      {topic.importance === "High" ? "⭐ முக்கியமானது (High)" : topic.importance === "Medium" ? "Medium" : "Low"}
+                                      {topic.importance === "High"
+                                        ? t("importance_high")
+                                        : topic.importance === "Medium"
+                                        ? t("importance_medium")
+                                        : t("importance_low")}
                                     </span>
 
                                     <span
@@ -724,16 +874,20 @@ export default function App() {
                                           : "bg-emerald-50 text-emerald-600"
                                       }`}
                                     >
-                                      {topic.difficulty === "Hard" ? "கடினம் (Hard)" : topic.difficulty === "Medium" ? "நடுத்தரம்" : "எளிது"}
+                                      {topic.difficulty === "Hard"
+                                        ? t("difficulty_hard")
+                                        : topic.difficulty === "Medium"
+                                        ? t("difficulty_medium")
+                                        : t("difficulty_easy")}
                                     </span>
 
-                                    <span className="text-[10px] bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded font-mono font-bold">
-                                      {topic.weightagePercent}% மதிப்பெண்கள்
+                                    <span className="text-[10px] bg-slate-100 dark:bg-[#1a2642] text-slate-700 dark:text-slate-300 px-1.5 py-0.5 rounded font-mono font-bold">
+                                      {topic.weightagePercent}% {t("weightage")}
                                     </span>
                                   </div>
 
-                                  <p className="text-xs text-slate-600 leading-relaxed max-w-3xl">
-                                    {topic.description}
+                                  <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed max-w-3xl">
+                                    {formatBilingualText(topic.description, selectedLanguage)}
                                   </p>
                                 </div>
 
@@ -743,11 +897,13 @@ export default function App() {
                                     className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                                       isTopicDone
                                         ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
-                                        : "bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
+                                        : "bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/60"
                                     }`}
                                   >
                                     <CheckCircle className={`w-3.5 h-3.5 ${isTopicDone ? "fill-emerald-500 text-white" : ""}`} />
-                                    <span>{isTopicDone ? "படித்து முடித்தேன்" : "படித்தேன் என குறி"}</span>
+                                    <span>
+                                      {isTopicDone ? t("completed") : t("mark_done")}
+                                    </span>
                                   </button>
 
                                   <button
@@ -756,7 +912,7 @@ export default function App() {
                                       setSelectedNoteTopic(topic.name);
                                     }}
                                     className="bg-slate-100 hover:bg-slate-200 text-slate-700 p-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 cursor-pointer"
-                                    title="குறிப்புகள் காண்க"
+                                    title={t("step2")}
                                   >
                                     <FileText className="w-3.5 h-3.5" />
                                   </button>
@@ -775,8 +931,10 @@ export default function App() {
               {activeTab === "notes" && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {/* Notes Navigator list */}
-                  <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs h-fit flex flex-col gap-2">
-                    <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider px-2 mb-2">தலைப்புகள் பட்டியல் (Topics)</h4>
+                  <div className="bg-white dark:bg-[#131c31] rounded-2xl border border-slate-200 dark:border-[#1e2d4d] p-4 shadow-xs h-fit flex flex-col gap-2 transition-colors">
+                    <h4 className="font-bold text-slate-800 dark:text-slate-200 text-xs uppercase tracking-wider px-2 mb-2">
+                      {t("topics_list_header")}
+                    </h4>
                     <div className="flex flex-col gap-1 max-h-[500px] overflow-y-auto pr-1">
                       {activeSubject.notes.map((note, idx) => {
                         const isDone = activeSubject.completedTopics.includes(note.topicName);
@@ -786,17 +944,17 @@ export default function App() {
                             onClick={() => setSelectedNoteTopic(note.topicName)}
                             className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-medium transition-all flex items-center justify-between gap-2 cursor-pointer ${
                               selectedNoteTopic === note.topicName
-                                ? "bg-indigo-50 text-indigo-700 border-l-4 border-indigo-600 font-bold"
-                                : "text-slate-600 hover:bg-slate-50"
+                                ? "bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border-l-4 border-indigo-600 font-bold"
+                                : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-[#1a2642]/40"
                             }`}
                           >
                             <span className="truncate flex items-center gap-1.5">
                               {isDone ? (
                                 <CheckCircle className="w-3.5 h-3.5 text-emerald-500 fill-emerald-100 shrink-0" />
                               ) : (
-                                <span className="w-1.5 h-1.5 rounded-full bg-slate-300 shrink-0"></span>
+                                <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-700 shrink-0"></span>
                               )}
-                              <span className="truncate">{note.topicName}</span>
+                              <span className="truncate">{formatBilingualText(note.topicName, selectedLanguage)}</span>
                             </span>
                           </button>
                         );
@@ -810,24 +968,25 @@ export default function App() {
                       const note = activeSubject.notes.find((n) => n.topicName === selectedNoteTopic);
                       if (!note) {
                         return (
-                          <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center text-slate-400">
-                            இடதுபுறமுள்ள தலைப்புகளில் ஏதேனும் ஒன்றை தேர்ந்தெடுத்து பாடக் குறிப்புகளைப் படிக்கவும்.
+                          <div className="bg-white dark:bg-[#131c31] rounded-2xl border border-slate-200 dark:border-[#1e2d4d] p-8 text-center text-slate-400 dark:text-slate-500 transition-colors">
+                            {t("select_topic_to_read")}
                           </div>
                         );
                       }
 
                       const isDone = activeSubject.completedTopics.includes(note.topicName);
+                      const { english, tamil } = splitExplanation(note.tamilExplanation);
 
                       return (
-                        <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xs flex flex-col gap-6">
+                        <div className="bg-white dark:bg-[#131c31] rounded-2xl border border-slate-200 dark:border-[#1e2d4d] p-5 sm:p-6 shadow-xs flex flex-col gap-6 transition-colors">
                           {/* Note Title */}
-                          <div className="flex justify-between items-start gap-4 flex-wrap border-b border-slate-100 pb-4">
+                          <div className="flex justify-between items-start gap-4 flex-wrap border-b border-slate-100 dark:border-[#1e2d4d] pb-4">
                             <div>
-                              <span className="text-xs font-bold text-indigo-600 tracking-wider block uppercase mb-1">
-                                பாடக் குறிப்புகள் (Notes)
+                              <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 tracking-wider block uppercase mb-1">
+                                {t("step2_subtitle")}
                               </span>
-                              <h3 className="text-lg font-bold text-slate-900 leading-snug">
-                                {note.topicName}
+                              <h3 className="text-lg font-bold text-slate-900 dark:text-white leading-snug">
+                                {formatBilingualText(note.topicName, selectedLanguage)}
                               </h3>
                             </div>
                             <button
@@ -839,56 +998,84 @@ export default function App() {
                               }`}
                             >
                               <CheckCircle className={`w-4 h-4 ${isDone ? "fill-emerald-500 text-emerald-100" : ""}`} />
-                              <span>{isDone ? "படித்து முடித்தேன் (Completed)" : "படித்து முடித்தேன் என குறிக்கவும்"}</span>
+                              <span>
+                                {isDone ? t("completed") : t("mark_as_read")}
+                              </span>
                             </button>
                           </div>
 
-                          {/* Tamil Explanation (📝 Notes in POML) */}
-                          <div>
-                            <h4 className="font-bold text-slate-800 text-sm mb-2 flex items-center gap-1.5">
-                              <span className="w-1 h-4 bg-indigo-500 rounded-sm"></span>
-                              <span>எளிய தமிழ் விளக்கம் (Simple Explanation):</span>
-                            </h4>
-                            <div className="bg-slate-50/55 rounded-xl p-4 text-sm text-slate-700 leading-relaxed border border-slate-100">
-                              {note.tamilExplanation}
-                            </div>
+                          {/* Explanation (📝 Notes) */}
+                          <div className="flex flex-col gap-4">
+                            {/* Render English if English selected or if Tamil explanation is empty */}
+                            {(selectedLanguage === "english" || !tamil) && (english || !tamil) && (
+                              <div>
+                                <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm mb-2 flex items-center gap-1.5">
+                                  <span className="w-1 h-4 bg-emerald-500 rounded-sm"></span>
+                                  <span>{t("explanation_header")}:</span>
+                                </h4>
+                                <div className="bg-slate-50/55 dark:bg-[#1c2842]/40 rounded-xl p-4 text-sm text-slate-700 dark:text-slate-300 leading-relaxed border border-slate-100 dark:border-[#22355e]/60 whitespace-pre-line">
+                                  {english || tamil}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Render Tamil if Tamil selected */}
+                            {selectedLanguage === "tamil" && tamil && (
+                              <div>
+                                <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm mb-2 flex items-center gap-1.5">
+                                  <span className="w-1 h-4 bg-indigo-500 rounded-sm"></span>
+                                  <span>{t("explanation_header")}:</span>
+                                </h4>
+                                <div className="bg-slate-50/55 dark:bg-[#1c2842]/40 rounded-xl p-4 text-sm text-slate-700 dark:text-slate-300 leading-relaxed border border-slate-100 dark:border-[#22355e]/60 whitespace-pre-line">
+                                  {tamil}
+                                </div>
+                              </div>
+                            )}
                           </div>
 
                           {/* Bullet notes */}
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                            <div className="bg-[#f0f9ff]/50 border border-[#e0f2fe] rounded-xl p-4">
-                              <h5 className="font-bold text-[#0369a1] text-xs uppercase tracking-wider mb-2">
-                                📌 திருப்புதல் குறிப்புகள் (Revision Notes)
+                            <div className="bg-[#f0f9ff]/50 dark:bg-sky-950/20 border border-[#e0f2fe] dark:border-sky-900/30 rounded-xl p-4">
+                              <h5 className="font-bold text-[#0369a1] dark:text-sky-400 text-xs uppercase tracking-wider mb-2">
+                                📌 {t("revision_notes")}
                               </h5>
-                              <ul className="space-y-2 text-xs text-[#0c4a6e] list-disc list-inside">
+                              <ul className="space-y-2 text-xs text-[#0c4a6e] dark:text-sky-300 list-disc list-inside">
                                 {note.shortNotes.map((pt, i) => (
-                                  <li key={i}>{pt}</li>
+                                  <li key={i}>{formatBilingualText(pt, selectedLanguage)}</li>
                                 ))}
                               </ul>
                             </div>
 
-                            <div className="bg-[#f0fdf4]/50 border border-[#dcfce7] rounded-xl p-4">
-                              <h5 className="font-bold text-[#15803d] text-xs uppercase tracking-wider mb-2">
-                                ⭐ முக்கிய தகவல்கள் (Important Points)
+                            <div className="bg-[#f0fdf4]/50 dark:bg-emerald-950/20 border border-[#dcfce7] dark:border-emerald-900/30 rounded-xl p-4">
+                              <h5 className="font-bold text-[#15803d] dark:text-emerald-400 text-xs uppercase tracking-wider mb-2">
+                                ⭐ {t("important_points")}
                               </h5>
-                              <ul className="space-y-2 text-xs text-[#14532d] list-disc list-inside">
+                              <ul className="space-y-2 text-xs text-[#14532d] dark:text-emerald-300 list-disc list-inside">
                                 {note.importantPoints.map((pt, i) => (
-                                  <li key={i}>{pt}</li>
+                                  <li key={i}>{formatBilingualText(pt, selectedLanguage)}</li>
                                 ))}
                               </ul>
                             </div>
                           </div>
 
-                          {/* Memory tricks (🧠 Memory Tricks in POML) */}
-                          <div className="bg-amber-50/60 border border-amber-100 rounded-xl p-4">
-                            <h4 className="font-bold text-amber-800 text-xs uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                          {/* Memory tricks (🧠 Memory Tricks) */}
+                          <div className="bg-amber-50/60 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/30 rounded-xl p-4">
+                            <h4 className="font-bold text-amber-800 dark:text-amber-400 text-xs uppercase tracking-wider mb-2 flex items-center gap-1.5">
                               <Zap className="w-4 h-4 text-amber-600" />
-                              <span>நினைவக உத்தி / உவமை (Memory Trick / Analogy)</span>
+                              <span>{t("memory_trick")}</span>
                             </h4>
-                            <p className="text-xs text-amber-900 leading-relaxed">
-                              {note.memoryTricks}
+                            <p className="text-xs text-amber-900 dark:text-amber-200 leading-relaxed">
+                              {formatBilingualText(note.memoryTricks, selectedLanguage)}
                             </p>
                           </div>
+
+                          {/* Visualization Diagram */}
+                          {note.visualDiagram && (
+                            <TopicVisualizer
+                              diagram={note.visualDiagram}
+                              isDarkMode={isDarkMode}
+                            />
+                          )}
                         </div>
                       );
                     })()}
@@ -898,49 +1085,51 @@ export default function App() {
 
               {/* STEP 3: Question Generator (❓ Questions in POML) */}
               {activeTab === "questions" && (
-                <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xs flex flex-col gap-6">
+                <div className="bg-white dark:bg-[#131c31] rounded-2xl border border-slate-200 dark:border-[#1e2d4d] p-5 sm:p-6 shadow-xs flex flex-col gap-6 transition-colors">
                   {/* Questions sub-navigation */}
-                  <div className="flex flex-col sm:flex-row justify-between items-center border-b border-slate-100 pb-4 gap-4">
+                  <div className="flex flex-col sm:flex-row justify-between items-center border-b border-slate-100 dark:border-[#1e2d4d] pb-4 gap-4">
                     <div>
-                      <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                        <HelpCircle className="text-indigo-600 w-5 h-5" />
-                        <span>❓ Question Generator</span>
+                      <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <HelpCircle className="text-indigo-600 dark:text-indigo-400 w-5 h-5" />
+                        <span>❓ {t("step3_title")}</span>
                       </h3>
-                      <p className="text-xs text-slate-500 mt-1">தேர்வு மதிப்பெண்களின் அடிப்படையில் வகைப்படுத்தப்பட்ட வினா வங்கி.</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                        {t("step3_desc")}
+                      </p>
                     </div>
 
-                    <div className="flex rounded-lg bg-slate-100 p-1 self-stretch sm:self-auto overflow-x-auto">
+                    <div className="flex rounded-lg bg-slate-100 dark:bg-[#1a2642] p-1 self-stretch sm:self-auto overflow-x-auto">
                       <button
                         onClick={() => setQuestionsType("mcq")}
                         className={`px-3 py-1.5 rounded-md text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
-                          questionsType === "mcq" ? "bg-white text-indigo-700 shadow-xs" : "text-slate-600"
+                          questionsType === "mcq" ? "bg-white dark:bg-[#131c31] text-indigo-700 dark:text-indigo-300 shadow-xs" : "text-slate-600 dark:text-slate-400"
                         }`}
                       >
-                        MCQ பயிற்சி
+                        {t("mcq_tab")}
                       </button>
                       <button
                         onClick={() => setQuestionsType("2marks")}
                         className={`px-3 py-1.5 rounded-md text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
-                          questionsType === "2marks" ? "bg-white text-indigo-700 shadow-xs" : "text-slate-600"
+                          questionsType === "2marks" ? "bg-white dark:bg-[#131c31] text-indigo-700 dark:text-indigo-300 shadow-xs" : "text-slate-600 dark:text-slate-400"
                         }`}
                       >
-                        2 மதிப்பெண் (2 Marks)
+                        {t("marks_tab", { count: 2 })}
                       </button>
                       <button
                         onClick={() => setQuestionsType("5marks")}
                         className={`px-3 py-1.5 rounded-md text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
-                          questionsType === "5marks" ? "bg-white text-indigo-700 shadow-xs" : "text-slate-600"
+                          questionsType === "5marks" ? "bg-white dark:bg-[#131c31] text-indigo-700 dark:text-indigo-300 shadow-xs" : "text-slate-600 dark:text-slate-400"
                         }`}
                       >
-                        5 மதிப்பெண் (5 Marks)
+                        {t("marks_tab", { count: 5 })}
                       </button>
                       <button
                         onClick={() => setQuestionsType("10marks")}
                         className={`px-3 py-1.5 rounded-md text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
-                          questionsType === "10marks" ? "bg-white text-indigo-700 shadow-xs" : "text-slate-600"
+                          questionsType === "10marks" ? "bg-white dark:bg-[#131c31] text-indigo-700 dark:text-indigo-300 shadow-xs" : "text-slate-600 dark:text-slate-400"
                         }`}
                       >
-                        10 மதிப்பெண் (10 Marks)
+                        {t("marks_tab", { count: 10 })}
                       </button>
                     </div>
                   </div>
@@ -954,25 +1143,25 @@ export default function App() {
                         const isCorrect = chosenAnswer === mcq.correctAnswerIndex;
 
                         return (
-                          <div key={mIdx} className="border border-slate-100 rounded-2xl p-5 shadow-xs bg-slate-50/40">
-                            <span className="text-[10px] bg-slate-200 text-slate-800 font-bold px-2 py-0.5 rounded-md uppercase tracking-wide">
+                          <div key={mIdx} className="border border-slate-100 dark:border-[#1e2d4d] rounded-2xl p-5 shadow-xs bg-slate-50/40 dark:bg-[#1c2842]/20">
+                            <span className="text-[10px] bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-300 font-bold px-2 py-0.5 rounded-md uppercase tracking-wide">
                               MCQ {mIdx + 1}
                             </span>
-                            <h4 className="font-semibold text-slate-900 mt-2.5 text-sm sm:text-base leading-snug">
-                              {mcq.question}
+                            <h4 className="font-semibold text-slate-900 dark:text-white mt-2.5 text-sm sm:text-base leading-snug">
+                              {formatBilingualText(mcq.question, selectedLanguage)}
                             </h4>
 
                             {/* Options */}
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
                               {mcq.options.map((option, oIdx) => {
-                                let btnStyle = "bg-white border-slate-200 text-slate-700 hover:bg-slate-50";
+                                let btnStyle = "bg-white dark:bg-[#131c31] border-slate-200 dark:border-[#1e2d4d] text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#1a2642]";
                                 if (chosenAnswer !== undefined) {
                                   if (oIdx === mcq.correctAnswerIndex) {
-                                    btnStyle = "bg-emerald-50 border-emerald-300 text-emerald-800 font-semibold";
+                                    btnStyle = "bg-emerald-50 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 font-semibold";
                                   } else if (chosenAnswer === oIdx) {
-                                    btnStyle = "bg-rose-50 border-rose-300 text-rose-800";
+                                    btnStyle = "bg-rose-50 dark:bg-rose-950/20 border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-300";
                                   } else {
-                                    btnStyle = "bg-white border-slate-100 text-slate-400 opacity-60";
+                                    btnStyle = "bg-white dark:bg-[#131c31] border-slate-100 dark:border-[#1e2d4d] text-slate-400 opacity-60";
                                   }
                                 }
 
@@ -988,10 +1177,10 @@ export default function App() {
                                       chosenAnswer === undefined ? "cursor-pointer" : ""
                                     }`}
                                   >
-                                    <span className="w-5 h-5 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center font-mono font-bold text-[10px] text-slate-500 shrink-0">
+                                    <span className="w-5 h-5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center font-mono font-bold text-[10px] text-slate-500 dark:text-slate-400 shrink-0">
                                       {String.fromCharCode(65 + oIdx)}
                                     </span>
-                                    <span>{option}</span>
+                                    <span>{formatBilingualText(option, selectedLanguage)}</span>
                                   </button>
                                 );
                               })}
@@ -1000,7 +1189,9 @@ export default function App() {
                             {/* Explanation */}
                             {showExplanation && (
                               <div className={`mt-4 p-4 rounded-xl border text-xs ${
-                                isCorrect ? "bg-emerald-50/50 border-emerald-100 text-emerald-900" : "bg-rose-50/50 border-rose-100 text-rose-900"
+                                isCorrect
+                                  ? "bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-100 dark:border-emerald-900 text-emerald-900 dark:text-emerald-300"
+                                  : "bg-rose-50/50 dark:bg-rose-950/20 border-rose-100 dark:border-rose-900 text-rose-900 dark:text-rose-300"
                               }`}>
                                 <p className="font-bold flex items-center gap-1.5 mb-1">
                                   {isCorrect ? (
@@ -1008,10 +1199,13 @@ export default function App() {
                                   ) : (
                                     <AlertTriangle className="w-4 h-4 text-rose-600" />
                                   )}
-                                  <span>{isCorrect ? "சரியான விடை! (Correct)" : "தவறான விடை. சரியான விடை:"} Option {String.fromCharCode(65 + mcq.correctAnswerIndex)}</span>
+                                  <span>
+                                    {isCorrect ? t("mcq_correct") : t("mcq_incorrect")}{" "}
+                                    Option {String.fromCharCode(65 + mcq.correctAnswerIndex)}
+                                  </span>
                                 </p>
-                                <p className="leading-relaxed mt-2 pl-5">
-                                  {mcq.explanation}
+                                <p className="leading-relaxed mt-2 pl-5 whitespace-pre-line">
+                                  {formatBilingualText(mcq.explanation, selectedLanguage)}
                                 </p>
                               </div>
                             )}
@@ -1034,35 +1228,52 @@ export default function App() {
 
                         if (!targetList || targetList.length === 0) {
                           return (
-                            <p className="text-center text-slate-400 py-6 text-xs">
-                              இந்த பிரிவில் கேள்விகள் எதுவும் உருவாக்கப்படவில்லை.
+                            <p className="text-center text-slate-400 dark:text-slate-500 py-6 text-xs">
+                              {t("no_questions")}
                             </p>
                           );
                         }
 
                         return targetList.map((q, idx) => (
-                          <div key={idx} className="border border-slate-100 rounded-2xl overflow-hidden shadow-xs">
-                            <div className="bg-slate-50/70 p-4 border-b border-slate-100 flex justify-between items-center flex-wrap gap-2">
-                              <span className="text-[10px] bg-indigo-50 text-indigo-700 font-bold px-2 py-0.5 rounded border border-indigo-100">
-                                வினா {idx + 1}
+                          <div key={idx} className="border border-slate-100 dark:border-[#1e2d4d] rounded-2xl overflow-hidden shadow-xs transition-colors">
+                            <div className="bg-slate-50/70 dark:bg-[#1a2642]/60 p-4 border-b border-slate-100 dark:border-[#1e2d4d] flex justify-between items-center flex-wrap gap-2">
+                              <span className="text-[10px] bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-bold px-2 py-0.5 rounded border border-indigo-100 dark:border-indigo-900/40">
+                                {t("question_label")} {idx + 1}
                               </span>
-                              <span className="text-xs font-mono font-bold text-slate-500">
-                                {questionsType === "2marks" ? "2 Marks (மதிப்பெண்கள்)" : questionsType === "5marks" ? "5 Marks" : "10 Marks"}
+                              <span className="text-xs font-mono font-bold text-slate-500 dark:text-slate-400">
+                                {questionsType === "2marks" ? "2 Marks" : questionsType === "5marks" ? "5 Marks" : "10 Marks"}
                               </span>
                             </div>
 
                             <div className="p-4 sm:p-5 flex flex-col gap-4">
-                              <h4 className="font-bold text-slate-900 text-sm leading-snug">
-                                {q.question}
+                              <h4 className="font-bold text-slate-900 dark:text-white text-sm leading-snug">
+                                {formatBilingualText(q.question, selectedLanguage)}
                               </h4>
 
-                              <div className="bg-indigo-50/30 border border-indigo-100/60 rounded-xl p-4">
-                                <span className="text-[10px] font-bold text-indigo-700 uppercase tracking-wider block mb-2">
-                                  🔑 விடைக்குறிப்பு மற்றும் கட்டமைப்பு (Ideal Key / Outline)
-                                </span>
-                                <p className="text-xs text-indigo-955 leading-relaxed whitespace-pre-line">
-                                  {q.answerTamil}
-                                </p>
+                              <div className="bg-indigo-50/30 dark:bg-indigo-950/20 border border-indigo-100/60 dark:border-indigo-900/30 rounded-xl p-4 flex flex-col gap-4">
+                                {/* Render Tamil Answer Outline if Tamil selected or if English answer is empty */}
+                                {(selectedLanguage === "tamil" || !q.answerEnglish) && q.answerTamil && (
+                                  <div>
+                                    <span className="text-[10px] font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider block mb-1.5">
+                                      🔑 {t("answer_key_label")}
+                                    </span>
+                                    <p className="text-xs text-indigo-955 dark:text-indigo-200 leading-relaxed whitespace-pre-line">
+                                      {q.answerTamil}
+                                    </p>
+                                  </div>
+                                )}
+
+                                {/* Render English Answer Outline if English selected */}
+                                {selectedLanguage === "english" && (q.answerEnglish || q.answerTamil) && (
+                                  <div>
+                                    <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block mb-1.5">
+                                      🔑 {t("answer_key_label")}
+                                    </span>
+                                    <p className="text-xs text-emerald-955 dark:text-emerald-200 leading-relaxed whitespace-pre-line">
+                                      {q.answerEnglish || q.answerTamil}
+                                    </p>
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -1077,43 +1288,49 @@ export default function App() {
               {activeTab === "plan" && (
                 <div className="flex flex-col gap-6">
                   {/* Timetable schedule list */}
-                  <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xs flex flex-col gap-6">
+                  <div className="bg-white dark:bg-[#131c31] rounded-2xl border border-slate-200 dark:border-[#1e2d4d] p-5 sm:p-6 shadow-xs flex flex-col gap-6 transition-colors">
                     <div>
-                      <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                        <Calendar className="text-indigo-600 w-5 h-5" />
-                        <span>📅 Study Plan (படிப்புத் திட்டம்)</span>
+                      <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <Calendar className="text-indigo-600 dark:text-indigo-400 w-5 h-5" />
+                        <span>📅 {t("step4_title")}</span>
                       </h3>
-                      <p className="text-xs text-slate-500 mt-1">நாட்கள் வாரியாக தலைப்புகளைப் பிரித்துப் படிப்பதற்கான அட்டவணை.</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                        {t("step4_desc")}
+                      </p>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {activeSubject.studyPlan.dailySchedule.map((day, idx) => (
-                        <div key={idx} className="border border-slate-100 rounded-2xl p-4 bg-slate-50/40 hover:bg-slate-50 flex flex-col justify-between transition-colors shadow-xs">
+                        <div key={idx} className="border border-slate-100 dark:border-[#1e2d4d] rounded-2xl p-4 bg-slate-50/40 dark:bg-[#1c2842]/20 hover:bg-slate-50 dark:hover:bg-[#1c2842]/40 flex flex-col justify-between transition-colors shadow-xs">
                           <div>
                             <div className="flex justify-between items-center mb-3">
-                              <span className="text-xs font-extrabold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
+                              <span className="text-xs font-extrabold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 rounded border border-indigo-100 dark:border-indigo-900/40">
                                 {day.dateString}
                               </span>
-                              <span className="text-xs text-slate-500 font-semibold">{day.studyDurationHours} மணிநேரம் (Hours)</span>
+                              <span className="text-xs text-slate-500 dark:text-slate-400 font-semibold">
+                                {day.studyDurationHours} {t("hours_label")}
+                              </span>
                             </div>
 
-                            <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider mb-2">படிக்க வேண்டிய தலைப்புகள்:</h4>
+                            <h4 className="font-bold text-slate-800 dark:text-slate-200 text-xs uppercase tracking-wider mb-2">
+                              {t("topics_to_cover")}
+                            </h4>
                             <ul className="space-y-1.5 mb-4">
                               {day.topicsToCover.map((topic, tIdx) => {
                                 const isDone = activeSubject.completedTopics.includes(topic);
                                 return (
-                                  <li key={tIdx} className="text-xs text-slate-700 flex items-start gap-1.5">
+                                  <li key={tIdx} className="text-xs text-slate-700 dark:text-slate-300 flex items-start gap-1.5">
                                     <span className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${isDone ? "bg-emerald-500" : "bg-indigo-500"}`}></span>
-                                    <span className={isDone ? "line-through text-slate-400" : ""}>{topic}</span>
+                                    <span className={isDone ? "line-through text-slate-400" : ""}>{formatBilingualText(topic, selectedLanguage)}</span>
                                   </li>
                                 );
                               })}
                             </ul>
                           </div>
 
-                          <div className="bg-white border border-slate-100 rounded-lg p-2.5 text-[11px] text-slate-600 leading-normal">
-                            <span className="font-bold text-indigo-600 block mb-0.5">💡 Focus Tip:</span>
-                            {day.focusTips}
+                          <div className="bg-white dark:bg-[#131c31] border border-slate-100 dark:border-[#1e2d4d] rounded-lg p-2.5 text-[11px] text-slate-600 dark:text-slate-300 leading-normal">
+                            <span className="font-bold text-indigo-600 dark:text-indigo-400 block mb-0.5">💡 {t("focus_tip_label")}</span>
+                            {formatBilingualText(day.focusTips, selectedLanguage)}
                           </div>
                         </div>
                       ))}
@@ -1123,21 +1340,21 @@ export default function App() {
                   {/* Revision Schedule & Improvement Tips */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Revision schedule */}
-                    <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs flex flex-col gap-4">
-                      <h4 className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
+                    <div className="bg-white dark:bg-[#131c31] rounded-2xl border border-slate-200 dark:border-[#1e2d4d] p-5 shadow-xs flex flex-col gap-4 transition-colors">
+                      <h4 className="font-bold text-slate-900 dark:text-white text-sm flex items-center gap-1.5">
                         <RotateCcw className="w-4 h-4 text-emerald-500" />
-                        <span>🔄 திருப்புதல் அட்டவணை (Revision Schedule)</span>
+                        <span>{t("revision_schedule_header")}</span>
                       </h4>
                       <div className="flex flex-col gap-3.5">
                         {activeSubject.studyPlan.revisionSchedule.map((rev, idx) => (
-                          <div key={idx} className="border border-emerald-100 bg-[#f0fdf4]/30 rounded-xl p-3 text-xs text-slate-700">
+                          <div key={idx} className="border border-emerald-100 dark:border-emerald-900/30 bg-[#f0fdf4]/30 dark:bg-emerald-950/10 rounded-xl p-3 text-xs text-slate-700 dark:text-slate-300">
                             <div className="flex justify-between items-center mb-1.5 flex-wrap gap-1">
-                              <span className="font-bold text-emerald-700">{rev.dateString}</span>
-                              <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-bold uppercase">Active Recall</span>
+                              <span className="font-bold text-emerald-700 dark:text-emerald-400">{rev.dateString}</span>
+                              <span className="text-[10px] bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 px-1.5 py-0.5 rounded font-bold uppercase">Active Recall</span>
                             </div>
-                            <p className="mb-2"><strong>Revise:</strong> {rev.topics.join(", ")}</p>
-                            <p className="text-[11px] text-slate-500 leading-normal bg-white p-2 rounded border border-emerald-50">
-                              <strong>முறைகள்:</strong> {rev.method}
+                            <p className="mb-2"><strong>{t("revise_label")}:</strong> {rev.topics.map(t => formatBilingualText(t, selectedLanguage)).join(", ")}</p>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-normal bg-white dark:bg-[#131c31] p-2 rounded border border-emerald-50 dark:border-emerald-950/30">
+                              <strong>{t("methodology_label")}</strong> {formatBilingualText(rev.method, selectedLanguage)}
                             </p>
                           </div>
                         ))}
@@ -1145,18 +1362,18 @@ export default function App() {
                     </div>
 
                     {/* Weak Area Tips */}
-                    <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs flex flex-col gap-4">
-                      <h4 className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
+                    <div className="bg-white dark:bg-[#131c31] rounded-2xl border border-slate-200 dark:border-[#1e2d4d] p-5 shadow-xs flex flex-col gap-4 transition-colors">
+                      <h4 className="font-bold text-slate-900 dark:text-white text-sm flex items-center gap-1.5">
                         <Sliders className="w-4 h-4 text-amber-500" />
-                        <span>⚡ கடின பகுதிகளை எதிர்கொள்ளும் உத்திகள் (Weak Area Tips)</span>
+                        <span>{t("weak_areas_header")}</span>
                       </h4>
                       <ul className="space-y-3">
                         {activeSubject.studyPlan.weakAreaImprovementTips.map((tip, idx) => (
-                          <li key={idx} className="text-xs text-slate-700 flex gap-2">
-                            <span className="w-5 h-5 rounded-full bg-amber-50 text-amber-700 border border-amber-100 flex items-center justify-center font-bold shrink-0 text-[10px]">
+                          <li key={idx} className="text-xs text-slate-700 dark:text-slate-300 flex gap-2">
+                            <span className="w-5 h-5 rounded-full bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-300 border border-amber-100 dark:border-amber-900/30 flex items-center justify-center font-bold shrink-0 text-[10px]">
                               {idx + 1}
                             </span>
-                            <span className="leading-relaxed mt-0.5">{tip}</span>
+                            <span className="leading-relaxed mt-0.5">{formatBilingualText(tip, selectedLanguage)}</span>
                           </li>
                         ))}
                       </ul>
@@ -1169,65 +1386,75 @@ export default function App() {
               {activeTab === "exam" && (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   {/* Mock test panel */}
-                  <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xs flex flex-col gap-5">
+                  <div className="lg:col-span-2 bg-white dark:bg-[#131c31] rounded-2xl border border-slate-200 dark:border-[#1e2d4d] p-5 sm:p-6 shadow-xs flex flex-col gap-5 transition-colors">
                     <div>
-                      <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                        <Zap className="text-indigo-600 w-5 h-5" />
-                        <span>📝 Mock Test Arena (தேர்வு அரங்கம்)</span>
+                      <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <Zap className="text-indigo-600 dark:text-indigo-400 w-5 h-5" />
+                        <span>📝 {t("mock_test_arena")}</span>
                       </h3>
-                      <p className="text-xs text-slate-500 mt-1">மதிப்பீடு செய்ய பதிலை தட்டச்சு செய்து AI-மதிப்பீட்டாளரின் கருத்துக்களைப் பெறவும்.</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                        {t("mock_test_arena_desc")}
+                      </p>
                     </div>
 
                     {/* Question Box */}
-                    <div className="bg-indigo-50/50 border border-indigo-100 rounded-2xl p-4 sm:p-5 flex flex-col gap-3">
+                    <div className="bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/40 rounded-2xl p-4 sm:p-5 flex flex-col gap-3">
                       <div className="flex justify-between items-center">
-                        <span className="text-[10px] bg-indigo-100 text-indigo-700 font-bold px-2 py-0.5 rounded border border-indigo-200">
-                          கேள்வி (Question)
+                        <span className="text-[10px] bg-indigo-100 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-bold px-2 py-0.5 rounded border border-indigo-200 dark:border-indigo-900/40">
+                          {t("question_label")}
                         </span>
-                        <span className="text-xs font-mono font-bold text-slate-500">{examMarks} Marks</span>
+                        <span className="text-xs font-mono font-bold text-slate-500 dark:text-slate-400">
+                          {examMarks} {t("exam_marks")}
+                        </span>
                       </div>
-                      <h4 className="font-bold text-slate-800 text-sm sm:text-base leading-snug">
-                        {examQuestion}
+                      <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm sm:text-base leading-snug">
+                        {formatBilingualText(examQuestion, selectedLanguage)}
                       </h4>
                       <div className="flex justify-end">
                         <button
                           onClick={selectMockExamQuestion}
-                          className="text-xs text-indigo-700 hover:text-indigo-900 font-bold flex items-center gap-1 cursor-pointer"
+                          className="text-xs text-indigo-700 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-200 font-bold flex items-center gap-1 cursor-pointer"
                         >
                           <RotateCcw className="w-3.5 h-3.5" />
-                          <span>வேறு கேள்வி மாற்று (Switch Question)</span>
+                          <span>{t("switch_question_btn")}</span>
                         </button>
                       </div>
                     </div>
 
                     {/* Answer area */}
                     <div className="flex flex-col gap-1.5">
-                      <label htmlFor="student-answer-area" className="text-xs font-bold text-slate-700">உங்கள் பதில் (Type Your Answer):</label>
+                      <label htmlFor="student-answer-area" className="text-xs font-bold text-slate-700 dark:text-slate-200">
+                        {t("your_answer_label")}
+                      </label>
                       <textarea
                         id="student-answer-area"
                         value={studentAnswer}
                         onChange={(e) => setStudentAnswer(e.target.value)}
-                        placeholder="பதிலை தமிழ் அல்லது ஆங்கிலத்தில் தட்டச்சு செய்யவும். சூத்திரங்கள், முக்கிய குறிப்புகள் மற்றும் விளக்கங்களை விரிவாக எழுத முயற்சிக்கவும்..."
-                        className="w-full min-h-[160px] border border-slate-200 rounded-xl p-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500"
+                        placeholder={t("answer_placeholder")}
+                        className="w-full min-h-[160px] bg-white dark:bg-[#1a2642]/40 border border-slate-200 dark:border-[#22355e] rounded-xl p-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 text-slate-900 dark:text-white whitespace-pre-wrap"
                       />
-                      <p className="text-[11px] text-slate-400">குறிப்பு: உங்கள் பதிலில் ஆங்கில தொழில்நுட்பச் சொற்களையும் தாராளமாகப் பயன்படுத்தலாம்.</p>
+                      <p className="text-[11px] text-slate-400 dark:text-slate-550">
+                        {t("mixed_language_tip")}
+                      </p>
                     </div>
 
-                    <div className="flex justify-end gap-3 border-t border-slate-100 pt-4">
+                    <div className="flex justify-end gap-3 border-t border-slate-100 dark:border-[#1e2d4d] pt-4">
                       <button
                         onClick={handleEvaluateAnswer}
                         disabled={isEvaluating}
-                        className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-bold rounded-xl px-5 py-3 text-sm flex items-center gap-2 shadow-md shadow-indigo-100 transition-colors cursor-pointer"
+                        className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-bold rounded-xl px-5 py-3 text-sm flex items-center gap-2 shadow-md shadow-indigo-100 dark:shadow-none transition-colors cursor-pointer"
                       >
                         {isEvaluating ? (
                           <>
                             <Loader className="w-4 h-4 animate-spin" />
-                            <span>பதில் மதிப்பீடு செய்யப்படுகிறது...</span>
+                            <span>
+                              {t("evaluating_progress")}
+                            </span>
                           </>
                         ) : (
                           <>
                             <CheckCircle className="w-4 h-4" />
-                            <span>பதிலை மதிப்பிடு (Submit Answer)</span>
+                            <span>{t("evaluate_btn")}</span>
                           </>
                         )}
                       </button>
@@ -1235,49 +1462,61 @@ export default function App() {
 
                     {/* Evaluation Result if submitted */}
                     {evaluationResult && (
-                      <div className="border-t border-slate-200 pt-5 flex flex-col gap-5">
-                        <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-100">
+                      <div className="border-t border-slate-200 dark:border-[#1e2d4d] pt-5 flex flex-col gap-5">
+                        <div className="flex justify-between items-center bg-slate-50 dark:bg-[#1a2642]/60 p-4 rounded-xl border border-slate-100 dark:border-[#1e2d4d]">
                           <div>
-                            <span className="text-xs text-slate-500 font-semibold block">உங்கள் மதிப்பெண் (Score)</span>
-                            <span className="text-2xl font-extrabold text-indigo-700 mt-1 block">{evaluationResult.score} / 10</span>
+                            <span className="text-xs text-slate-500 dark:text-slate-400 font-semibold block">
+                              {t("score_label")}
+                            </span>
+                            <span className="text-2xl font-extrabold text-indigo-700 dark:text-indigo-400 mt-1 block">{evaluationResult.score} / 10</span>
                           </div>
-                          <span className="text-sm font-bold bg-indigo-50 text-indigo-700 border border-indigo-100 px-3 py-1 rounded-lg">
-                            {evaluationResult.score >= 8 ? "Excellent! 🎉" : evaluationResult.score >= 5 ? "Good Progress! 👍" : "Need Improvement! 📚"}
+                          <span className="text-sm font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-900/40 px-3 py-1 rounded-lg">
+                            {evaluationResult.score >= 8
+                              ? t("score_excellent")
+                              : evaluationResult.score >= 5
+                              ? t("score_good")
+                              : t("score_improvement")}
                           </span>
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div className="bg-emerald-50/40 border border-emerald-100 rounded-xl p-4">
-                            <h5 className="font-bold text-emerald-800 text-xs uppercase tracking-wider mb-2 flex items-center gap-1">
-                              <ThumbsUp className="w-3.5 h-3.5" /> strengths (பலம்)
+                          <div className="bg-emerald-50/40 dark:bg-emerald-950/10 border border-emerald-100 dark:border-emerald-900/30 rounded-xl p-4">
+                            <h5 className="font-bold text-emerald-800 dark:text-emerald-400 text-xs uppercase tracking-wider mb-2 flex items-center gap-1">
+                              <ThumbsUp className="w-3.5 h-3.5" />
+                              <span>{t("strengths_label")}</span>
                             </h5>
-                            <p className="text-xs text-emerald-950 leading-relaxed">
-                              {evaluationResult.strengths}
+                            <p className="text-xs text-emerald-955 dark:text-emerald-300 leading-relaxed whitespace-pre-line">
+                              {formatBilingualText(evaluationResult.strengths, selectedLanguage)}
                             </p>
                           </div>
 
-                          <div className="bg-rose-50/40 border border-rose-100 rounded-xl p-4">
-                            <h5 className="font-bold text-rose-800 text-xs uppercase tracking-wider mb-2 flex items-center gap-1">
-                              <AlertTriangle className="w-3.5 h-3.5" /> weaknesses (திருத்தங்கள்)
+                          <div className="bg-rose-50/40 dark:bg-rose-950/10 border border-rose-100 dark:border-rose-900/30 rounded-xl p-4">
+                            <h5 className="font-bold text-rose-800 dark:text-rose-400 text-xs uppercase tracking-wider mb-2 flex items-center gap-1">
+                              <AlertTriangle className="w-3.5 h-3.5" />
+                              <span>{t("weaknesses_label")}</span>
                             </h5>
-                            <p className="text-xs text-rose-955 leading-relaxed">
-                              {evaluationResult.weaknesses}
+                            <p className="text-xs text-rose-955 dark:text-rose-300 leading-relaxed whitespace-pre-line">
+                              {formatBilingualText(evaluationResult.weaknesses, selectedLanguage)}
                             </p>
                           </div>
                         </div>
 
-                        <div className="border border-indigo-100 rounded-xl overflow-hidden shadow-xs">
-                          <div className="bg-indigo-50/60 p-3 border-b border-indigo-100 font-bold text-indigo-800 text-xs uppercase tracking-wider">
-                            Perfect Model Answer (முழுமையான விடை மாதிரி)
+                        <div className="border border-indigo-100 dark:border-indigo-900/30 rounded-xl overflow-hidden shadow-xs">
+                          <div className="bg-indigo-50/60 dark:bg-[#1a2642]/60 p-3 border-b border-indigo-100 dark:border-indigo-900/30 font-bold text-indigo-800 dark:text-indigo-400 text-xs uppercase tracking-wider">
+                            {t("perfect_answer_header")}
                           </div>
-                          <div className="p-4 text-xs text-slate-700 leading-relaxed whitespace-pre-line bg-indigo-50/20">
-                            {evaluationResult.perfectAnswer}
+                          <div className="p-4 text-xs text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-line bg-indigo-50/20 dark:bg-indigo-950/10">
+                            {formatBilingualText(evaluationResult.perfectAnswer, selectedLanguage)}
                           </div>
                         </div>
 
-                        <div className="bg-amber-50/60 border border-amber-100 rounded-xl p-4">
-                          <span className="text-xs font-bold text-amber-800 block mb-1">💡 Tutor Feedback (மதிப்பீட்டாளர் உரை):</span>
-                          <p className="text-xs text-amber-955 leading-relaxed">{evaluationResult.tamilExplanation}</p>
+                        <div className="bg-amber-50/60 dark:bg-amber-950/10 border border-amber-100 dark:border-[#1e2d4d] rounded-xl p-4">
+                          <span className="text-xs font-bold text-amber-800 dark:text-amber-400 block mb-1">
+                            💡 {t("tutor_feedback_label")}
+                          </span>
+                          <p className="text-xs text-amber-955 dark:text-amber-200 leading-relaxed">
+                            {formatBilingualText(evaluationResult.tamilExplanation, selectedLanguage)}
+                          </p>
                         </div>
                       </div>
                     )}
@@ -1287,24 +1526,24 @@ export default function App() {
                   <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs h-fit flex flex-col gap-4">
                     <h4 className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
                       <TrendingUp className="w-4 h-4 text-indigo-600" />
-                      <span>முந்தைய தேர்வுகளின் வரலாறு (History)</span>
+                      <span>{t("exam_history_title")}</span>
                     </h4>
 
                     {(!activeSubject.mockExamHistory || activeSubject.mockExamHistory.length === 0) ? (
                       <p className="text-xs text-slate-400 py-6 text-center leading-normal">
-                        வரலாறு காலியாக உள்ளது. முதல் தேர்வை எழுதி உங்களை சோதித்துக் கொள்ளுங்கள்!
+                        {t("history_empty")}
                       </p>
                     ) : (
                       <div className="flex flex-col gap-3 max-h-[400px] overflow-y-auto pr-1">
                         {activeSubject.mockExamHistory.map((item, idx) => (
-                          <div key={idx} className="border border-slate-100 rounded-xl p-3 text-xs bg-slate-50/55 hover:bg-slate-50 transition-colors">
+                          <div key={idx} className="border border-slate-100 dark:border-[#1e2d4d] rounded-xl p-3 text-xs bg-slate-50/55 dark:bg-slate-950/20 hover:bg-slate-50 dark:hover:bg-slate-950/40 transition-colors">
                             <div className="flex justify-between items-center mb-1">
                               <span className="font-mono text-[10px] text-slate-400">{item.date}</span>
-                              <span className="font-extrabold text-indigo-700 bg-white border border-slate-100 px-2 py-0.5 rounded">
+                              <span className="font-extrabold text-indigo-700 dark:text-indigo-400 bg-white dark:bg-[#131c31] border border-slate-100 dark:border-[#1e2d4d] px-2 py-0.5 rounded">
                                 {item.evaluation.score} / 10
                               </span>
                             </div>
-                            <p className="font-bold text-slate-700 line-clamp-2 mb-1.5">{item.question}</p>
+                            <p className="font-bold text-slate-700 dark:text-slate-200 line-clamp-2 mb-1.5">{item.question}</p>
                             <button
                               onClick={() => {
                                 setExamQuestion(item.question);
@@ -1312,9 +1551,9 @@ export default function App() {
                                 setStudentAnswer(item.studentAnswer);
                                 setEvaluationResult(item.evaluation);
                               }}
-                              className="text-[10px] text-indigo-600 font-bold hover:underline cursor-pointer"
+                              className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold hover:underline cursor-pointer"
                             >
-                              முடிவுகளை மீண்டும் காண்க (View Detail)
+                              {t("view_detail_btn")}
                             </button>
                           </div>
                         ))}
@@ -1332,7 +1571,7 @@ export default function App() {
       {activeSubject && (
         <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
           {chatOpen ? (
-            <div className="w-[330px] sm:w-[380px] h-[450px] bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden flex flex-col mb-3 animate-fade-in-up">
+            <div className="w-[330px] sm:w-[380px] h-[450px] bg-white dark:bg-[#131c31] rounded-2xl border border-slate-200 dark:border-[#1e2d4d] shadow-xl overflow-hidden flex flex-col mb-3 animate-fade-in-up">
               {/* Chat Header */}
               <div className="bg-indigo-600 p-3.5 text-white flex justify-between items-center">
                 <div className="flex items-center gap-2.5">
@@ -1340,26 +1579,26 @@ export default function App() {
                     <MessageSquare className="w-4 h-4" />
                   </div>
                   <div>
-                    <h4 className="font-bold text-xs">ஸ்டடி மாஸ்டர் AI Tutor</h4>
-                    <span className="text-[10px] text-indigo-200">மின்னல் வேக விளக்கம்</span>
+                    <h4 className="font-bold text-xs">{t("bot_title")}</h4>
+                    <span className="text-[10px] text-indigo-200">{t("bot_subtitle")}</span>
                   </div>
                 </div>
                 <button
                   onClick={() => setChatOpen(false)}
                   className="text-white hover:text-indigo-100 text-lg cursor-pointer"
-                  title="மூடு"
+                  title={t("close_btn")}
                 >
                   ✕
                 </button>
               </div>
 
               {/* Chat Messages */}
-              <div className="flex-1 p-4 overflow-y-auto space-y-3.5 bg-slate-50">
+              <div className="flex-1 p-4 overflow-y-auto space-y-3.5 bg-slate-50 dark:bg-[#1c2842]/40">
                 {chatHistory.length === 0 && (
-                  <div className="text-center text-slate-400 py-12 px-4 flex flex-col items-center">
+                  <div className="text-center text-slate-400 dark:text-slate-550 py-12 px-4 flex flex-col items-center">
                     <MessageSquare className="w-8 h-8 text-slate-300 mb-2.5" />
                     <p className="text-xs leading-relaxed">
-                      வணக்கம்! நான் உங்கள் <strong>Study Master AI Tutor</strong>. பாடத்திட்டம் மற்றும் குறிப்புகள் குறித்து ஏதேனும் கேள்விகள் இருந்தால் கேளுங்கள்.
+                      {t("bot_welcome")}
                     </p>
                   </div>
                 )}
@@ -1372,7 +1611,7 @@ export default function App() {
                     <div className={`p-3 rounded-2xl max-w-[85%] text-xs leading-relaxed ${
                       chat.role === "user"
                         ? "bg-indigo-600 text-white rounded-br-none"
-                        : "bg-white border border-slate-200 text-slate-800 rounded-bl-none shadow-xs"
+                        : "bg-white dark:bg-[#131c31] border border-slate-200 dark:border-[#1e2d4d] text-slate-800 dark:text-slate-200 rounded-bl-none shadow-xs"
                     }`}>
                       {chat.text}
                     </div>
@@ -1383,21 +1622,21 @@ export default function App() {
                 {chatLoading && (
                   <div className="flex items-center gap-2.5 text-slate-400 text-xs">
                     <Loader className="w-3.5 h-3.5 animate-spin" />
-                    <span>பதில் டைப் செய்யப்படுகிறது...</span>
+                    <span>{t("bot_typing")}</span>
                   </div>
                 )}
                 <div ref={chatBottomRef} />
               </div>
 
               {/* Chat Input */}
-              <form onSubmit={handleSendChatMessage} className="p-3 border-t border-slate-100 flex gap-2 bg-white">
+              <form onSubmit={handleSendChatMessage} className="p-3 border-t border-slate-100 dark:border-[#1e2d4d] flex gap-2 bg-white dark:bg-[#131c31]">
                 <input
                   id="chat-input-box"
                   type="text"
                   value={chatMessage}
                   onChange={(e) => setChatMessage(e.target.value)}
-                  placeholder="ஏதேனும் சந்தேகம் உள்ளதா? கேளுங்கள்..."
-                  className="flex-1 border border-slate-200 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                  placeholder={t("bot_input_placeholder")}
+                  className="flex-1 bg-white dark:bg-[#1a2642]/40 border border-slate-200 dark:border-[#22355e] text-slate-900 dark:text-white rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
                 />
                 <button
                   type="submit"
@@ -1414,7 +1653,7 @@ export default function App() {
             className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-full p-4 shadow-lg hover:shadow-indigo-200/50 flex items-center justify-center gap-2 cursor-pointer transition-all duration-300 hover:scale-105"
           >
             <MessageSquare className="w-5 h-5" />
-            <span className="text-xs">சந்தேகம் கேளுங்கள் (AI Tutor)</span>
+            <span className="text-xs">{t("bot_launcher")}</span>
           </button>
         </div>
       )}
@@ -1427,9 +1666,9 @@ export default function App() {
               <div>
                 <h3 className="text-lg font-bold text-slate-950 flex items-center gap-2">
                   <BookMarked className="text-indigo-600 w-5 h-5" />
-                  <span>புதிய பாடத்திட்டத்தைச் சேர்</span>
+                  <span>{t("create_title")}</span>
                 </h3>
-                <p className="text-xs text-slate-500 mt-1">உங்கள் பாடத்திட்டத்தின் அடிப்படையில் தனிப்பயன் படிப்புத் திட்டத்தை உருவாக்குங்கள்.</p>
+                <p className="text-xs text-slate-500 mt-1">{t("create_subtitle")}</p>
               </div>
               <button
                 onClick={() => {
@@ -1450,12 +1689,12 @@ export default function App() {
                   <span className="absolute font-bold text-xs text-indigo-700">{loadingStep}/4</span>
                 </div>
                 <div>
-                  <h4 className="font-bold text-slate-900 text-sm">AI பகுப்பாய்வு செய்கிறது...</h4>
+                  <h4 className="font-bold text-slate-900 text-sm">{t("ai_analyzing")}</h4>
                   <p className="text-xs text-indigo-700 font-semibold mt-2 px-4 py-1.5 bg-indigo-50 border border-indigo-100 rounded-full inline-block">
                     {loadingText}
                   </p>
                   <p className="text-[11px] text-slate-400 mt-3 max-w-xs leading-normal">
-                    Gemini 3.5 Flash உங்களின் பாடத்திட்டத்தை ஆராய்ந்து எளிய தமிழ் விளக்கங்கள், வினா வங்கிகள் மற்றும் உகந்த நாட்காட்டியை தயார் செய்கிறது. இதற்குச் சில வினாடிகள் ஆகலாம்.
+                    {t("ai_analyzing_desc")}
                   </p>
                 </div>
               </div>
@@ -1463,46 +1702,46 @@ export default function App() {
               /* Actual input fields */
               <form onSubmit={handleCreateSystem} className="flex flex-col gap-4">
                 <div className="flex flex-col gap-1.5">
-                  <label htmlFor="course-input" className="text-xs font-bold text-slate-700">வகுப்பு / கல்வி நிலை (Course/Class):</label>
+                  <label htmlFor="course-input" className="text-xs font-bold text-slate-700">{t("form_course_label")}</label>
                   <input
                     id="course-input"
                     type="text"
                     required
                     value={course}
                     onChange={(e) => setCourse(e.target.value)}
-                    placeholder="எ.கா. B.E. Computer Science, Class 10, Class 12..."
+                    placeholder={t("form_course_placeholder")}
                     className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
                   />
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label htmlFor="subject-input" className="text-xs font-bold text-slate-700">பாடம் (Subject Name):</label>
+                  <label htmlFor="subject-input" className="text-xs font-bold text-slate-700">{t("form_subject_label")}</label>
                   <input
                     id="subject-input"
                     type="text"
                     required
                     value={subjectName}
                     onChange={(e) => setSubjectName(e.target.value)}
-                    placeholder="எ.கா. Engineering Physics, கணிதம், Computer Networks..."
+                    placeholder={t("form_subject_placeholder")}
                     className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
                   />
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label htmlFor="syllabus-input" className="text-xs font-bold text-slate-700">பாடத்திட்டம் அல்லது குறிப்புகள் (Syllabus or Notes):</label>
+                  <label htmlFor="syllabus-input" className="text-xs font-bold text-slate-700">{t("form_syllabus_label")}</label>
                   <textarea
                     id="syllabus-input"
                     required
                     value={syllabusRaw}
                     onChange={(e) => setSyllabusRaw(e.target.value)}
-                    placeholder="பாடத்திட்டம், அலகுகள், முக்கியத் தலைப்புகள் அல்லது சுருக்கக் குறிப்புகளை இங்கே ஒட்டவும்..."
+                    placeholder={t("form_syllabus_placeholder")}
                     className="w-full min-h-[120px] border border-slate-200 rounded-xl p-3 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1.5">
-                    <label htmlFor="examdate-input" className="text-xs font-bold text-slate-700">தேர்வு தேதி (Exam Date):</label>
+                    <label htmlFor="examdate-input" className="text-xs font-bold text-slate-700">{t("form_examdate_label")}</label>
                     <input
                       id="examdate-input"
                       type="date"
@@ -1513,13 +1752,13 @@ export default function App() {
                   </div>
 
                   <div className="flex flex-col gap-1.5">
-                    <label htmlFor="studytime-input" className="text-xs font-bold text-slate-700">கிடைக்கும் படிப்பு நேரம் (Study Time):</label>
+                    <label htmlFor="studytime-input" className="text-xs font-bold text-slate-700">{t("form_studytime_label")}</label>
                     <input
                       id="studytime-input"
                       type="text"
                       value={studyTime}
                       onChange={(e) => setStudyTime(e.target.value)}
-                      placeholder="எ.கா. 2 hours per day, 5 hours"
+                      placeholder={t("form_studytime_placeholder")}
                       className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
                     />
                   </div>
@@ -1531,13 +1770,13 @@ export default function App() {
                     onClick={() => setIsCreatingSubject(false)}
                     className="border border-slate-200 hover:bg-slate-50 text-slate-600 px-4 py-2.5 rounded-xl text-xs font-bold transition-colors cursor-pointer"
                   >
-                    ரத்துசெய் (Cancel)
+                    {t("modal_cancel")}
                   </button>
                   <button
                     type="submit"
                     className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-md shadow-indigo-100 transition-colors cursor-pointer"
                   >
-                    படிப்பு முறையைத் தொடங்கு
+                    {t("form_submit_btn")}
                   </button>
                 </div>
               </form>

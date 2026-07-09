@@ -18,17 +18,39 @@ export interface SyllabusAnalysis {
   };
 }
 
+export interface VisualDiagramNode {
+  id: string;
+  labelEnglish: string;
+  labelTamil: string;
+  description?: string;
+}
+
+export interface VisualDiagramEdge {
+  from: string;
+  to: string;
+  label?: string;
+}
+
+export interface VisualDiagram {
+  type: "flowchart" | "tree" | "cycle" | "compare" | "table" | string;
+  title: string;
+  nodes: VisualDiagramNode[];
+  edges: VisualDiagramEdge[];
+}
+
 export interface StudyNote {
   topicName: string;
   tamilExplanation: string;
   shortNotes: string[];
   importantPoints: string[];
   memoryTricks: string;
+  visualDiagram?: VisualDiagram;
 }
 
 export interface TwoFiveTenMarkQuestion {
   question: string;
   answerTamil: string;
+  answerEnglish?: string;
 }
 
 export interface MCQQuestion {
